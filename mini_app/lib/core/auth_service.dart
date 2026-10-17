@@ -57,7 +57,7 @@ class AuthService extends ChangeNotifier {
     if (initData.isEmpty && !demo) {
       _fail(
         AuthErrorKind.noTelegram,
-        'Откройте приложение через Telegram — так мы узнаем, кто вы.',
+        'Так мы узнаем, кто вы, и сохраним ваш прогресс.',
       );
       return;
     }
@@ -84,12 +84,12 @@ class AuthService extends ChangeNotifier {
       if (error.isNetwork || error.isTimeout) {
         _fail(
           AuthErrorKind.network,
-          'Нет связи с сервером. Проверьте интернет и попробуйте снова.',
+          'Проверьте интернет и попробуйте снова.',
         );
       } else if (error.isUnauthorized) {
         _fail(
           AuthErrorKind.unauthorized,
-          'Не удалось подтвердить аккаунт. Откройте приложение заново.',
+          'Закройте Mini App и откройте её заново из чата с ботом.',
         );
       } else {
         _fail(AuthErrorKind.unknown, error.userMessage);
