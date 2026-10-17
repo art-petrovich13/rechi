@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  >
+  <meta name="theme-color" content="#F4F7FB">
+  <meta name="description" content="Речи — тренажёр речи для восстановления после инсульта и детей с нарушениями речи.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Речи">
+  <meta name="format-detection" content="telephone=no">
+
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <title>Речи</title>
+
+  <!-- Telegram Mini Apps SDK: должен загрузиться до Flutter. -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --bg-top: #f4f7fb;
+      --bg-bottom: #e7f3ee;
+      --ink: #172a3a;
+      --muted: #5c6b7a;
+      --primary: #1f7a6d;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+      background: #f4f7fb;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 32px;
+      text-align: center;
+      background: linear-gradient(160deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      transition: opacity 260ms ease;
+      pointer-events: none;
+    }
+
+    #splash.hidden {
+      opacity: 0;
+    }
+
+    .splash-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 96px;
+      height: 96px;
+      border-radius: 32px;
+      background: linear-gradient(145deg, #2e9c8a 0%, #1f7a6d 100%);
+      box-shadow: 0 18px 40px rgba(31, 122, 109, 0.24);
+      color: #ffffff;
+    }
+
+    .splash-logo svg {
+      width: 52px;
+      height: 52px;
+    }
+
+    .splash-title {
+      margin: 4px 0 0;
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--ink);
+    }
+
+    .splash-subtitle {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.45;
+      color: var(--muted);
+      max-width: 260px;
+    }
+
+    .splash-dots {
+      display: flex;
+      gap: 7px;
+      margin-top: 14px;
+    }
+
+    .splash-dots span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      opacity: 0.35;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .splash-dots span:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .splash-dots span:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    @keyframes pulse {
+      0%,
+      100% {
+        transform: translateY(0);
+        opacity: 0.35;
+      }
+      50% {
+        transform: translateY(-4px);
+        opacity: 1;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .splash-dots span {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="splash" role="status" aria-live="polite">
+    <div class="splash-logo" aria-hidden="true">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 27V21" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M18 33V15" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M26 38V10" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M34 31V17" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <path d="M42 27V21" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1 class="splash-title">Речи</h1>
+    <p class="splash-subtitle">Тренажёр речи для восстановления после инсульта и занятий с детьми</p>
+    <div class="splash-dots" aria-hidden="true">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+
+  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('splash');
+      if (!splash) {
+        return;
+      }
+      splash.classList.add('hidden');
+      window.setTimeout(function () {
+        splash.remove();
+      }, 280);
+    });
+  </script>
+</body>
+</html>
