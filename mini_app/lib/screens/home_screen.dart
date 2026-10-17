@@ -368,20 +368,25 @@ class _ProgressContent extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (data.weakPhonemes.isEmpty)
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Icon(
-                Icons.check_circle_outline_rounded,
+                data.attemptsCount == 0
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.verified_rounded,
                 size: 20,
                 color: AppColors.primary,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Пока нет результатов. После первой тренировки здесь '
-                  'появятся звуки, над которыми стоит поработать.',
-                  style: TextStyle(
+                  data.attemptsCount == 0
+                      ? 'Пока нет результатов. После первой тренировки здесь '
+                            'появятся звуки, над которыми стоит поработать.'
+                      : 'Отличный прогресс: слабых звуков пока нет. '
+                            'Продолжайте тренироваться.',
+                  style: const TextStyle(
                     fontSize: 14,
                     height: 1.4,
                     color: AppColors.muted,
