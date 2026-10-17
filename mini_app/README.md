@@ -112,6 +112,106 @@ Backend должен разрешать CORS для origin, с которого 
 
 ---
 
+## Локальная проверка с реальным backend (без Telegram)
+
+Backend можно поднять в Docker, а Mini App — через dev-прокси, который
+раздаёт сборку по `/app/` и подставляет валидный `initData` тестового
+пользователя. Backend при этом по-настоящему проверяет HMAC и JWT.
+
+### 1. Backend + PostgreSQL
+
+Из корня репозитория:
+
+```bash
+cd backend
+docker build -t rechi-backend .
+
+docker network create rechi-net 2>/dev/null || true
+
+docker run -d --name rechi-postgres --network rechi-net \
+  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=rechi \
+  -v rechi_pgdata:/var/lib/postgresql/data postgres:16
+
+cp .env.example .env
+# В .env минимум:
+# BOT_TOKEN=123456:TEST_TOKEN_FOR_LOCAL
+# JWT_SECRET=local-dev-secret-please-change
+# DATABASE_URL=postgresql+asyncpg://postgres:postgres@rechi-postgres:5432/rechi
+# SPEECH_SUPER_KEY=local
+# SPEECH_SUPER_SECRET=local
+# SPEECH_SUPER_URL=http://host.docker.internal:9000
+
+docker run --rm --network rechi-net --env-file .env rechi-backend alembic upgrade head
+docker run --rm --network rechi-net --env-file .env rechi-backend python seed.py
+docker run -d --name rechi-api --network rechi-net --env-file .env -p 8001:8000 rechi-backend
+```
+
+`8001`, потому что на этой машине порт `8000` уже занят другим проектом.
+Если свободен — можно использовать `-p 8000:8000`.
+
+Swagger: <http://localhost:8001/docs>  
+Health: <http://localhost:8001/health>
+
+### 2. Заглушка SpeechSuper (если нет реальных ключей)
+
+```bash
+cd mini_app
+python3 tool/fake_speechsuper.py
+```
+
+Она возвращает баллы по буквам слова: первый звук проблемный, остальные
+хорошие. Это только для локального UI-теста, не для оценки качества речи.
+Если `SPEECH_SUPER_KEY/SECRET` пустые или заглушка не запущена, `/assess`
+вернёт `502`.
+
+### 3. Сборка клиента и dev-прокси
+
+```bash
+cd mini_app
+flutter build web --release \
+  --base-href /app/ \
+  --dart-define=API_BASE_URL=http://localhost:8080 \
+  --no-web-resources-cdn
+
+DEV_BOT_TOKEN=123456:TEST_TOKEN_FOR_LOCAL \
+BACKEND_URL=http://127.0.0.1:8001 \
+node tool/dev_proxy.mjs
+```
+
+Открыть: <http://localhost:8080/app/>
+
+`DEV_BOT_TOKEN` должен совпадать с `BOT_TOKEN` backend. Прокси:
+- раздаёт Flutter-сборку по `/app/`;
+- проксирует `/api`, `/bot`, `/health`, `/docs` на backend;
+- в обычном браузере подставляет тестовый `initData`, а в настоящем
+  Telegram не вмешивается (там SDK даёт реальные данные).
+
+Первый запуск покажет онбординг «Как заниматься» — это нормально.
+Дальше можно пройти весь флоу: Home → запись → оценка → прогресс.
+
+Не запускайте `flutter run -d chrome` напрямую против backend: в backend
+нет CORS. Для локальной проверки используйте dev-прокси, он отдаёт
+клиент и API с одного origin.
+
+### 4. Настоящий Telegram
+
+```bash
+cloudflared tunnel --url http://localhost:8080
+```
+
+1. Создайте бота у `@BotFather`, положите настоящий токен в `BOT_TOKEN`.
+2. Укажите `PUBLIC_URL=https://<tunnel-домен>` и перезапустите `rechi-api`
+   (при старте backend зарегистрирует webhook).
+3. В Telegram отправьте боту `/start` и нажмите «Начать тренировку».
+
+Прокси проксирует и `/bot/webhook`, поэтому туннель можно направлять
+на него. В настоящем Telegram подмена `initData` не срабатывает.
+
+> Для production backend сам должен раздавать `/app` (или стоять за
+> nginx/Caddy). Сейчас в backend статики нет: `GET /app` возвращает 404,
+> а кнопка бота ведёт именно на `/app`. Это нужно согласовать с Андреем.
+
 ## Сборка
 
 ### Демо для показа (без backend)
@@ -186,7 +286,7 @@ flutter build web --release \
    **до** Flutter.
 2. Бот присылает кнопку `web_app` с HTTPS-URL.
 3. Flutter читает `Telegram.WebApp.initData` и отправляет в
-   `POST /api/auth/telegram`.
+   `POST /api/v1/auth/telegram`.
 4. Backend проверяет `hash` и выдаёт JWT.
 5. Дальше клиент работает как обычное web-приложение с
    `Authorization: Bearer <token>`.
@@ -206,7 +306,7 @@ flutter build web --release \
 - WAV, PCM16, 16 кГц, моно — максимально совместимый формат для
   SpeechSuper и простой в отладке.
 - На web `record.stop()` возвращает `blob:` URL; байты читаются
-  HTTP-запросом и уходят в `POST /api/assess` multipart-полем `audio`.
+  HTTP-запросом и уходят в `POST /api/v1/assess` multipart-полем `audio`.
 - Аудио не сохраняется на клиенте и не пишется в БД (по контракту).
 - Максимум записи — 10 секунд, минимум — 600 мс.
 - Если микрофон не отвечает 15 секунд, показывается понятная ошибка
