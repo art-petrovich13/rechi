@@ -399,6 +399,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   String _formatDuration(Duration duration) {
+    if (duration.inMilliseconds < 10000) {
+      final String seconds = (duration.inMilliseconds / 1000).toStringAsFixed(
+        1,
+      );
+      return '$seconds с';
+    }
     final int minutes = duration.inMinutes;
     final int seconds = duration.inSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
