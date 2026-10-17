@@ -9,6 +9,8 @@
 
 ## Base URL
 
+**Версия API: `v1`** (backend реализует префикс `/api/v1`).
+
 | Окружение | URL |
 |---|---|
 | Dev | `http://localhost:8000` |
@@ -24,11 +26,11 @@
 Authorization: Bearer <JWT>
 ```
 
-JWT выдаётся `POST /api/auth/telegram` после проверки подписи `initData`.
+JWT выдаётся `POST /api/v1/auth/telegram` после проверки подписи `initData`.
 
 ---
 
-## 1. POST `/api/auth/telegram`
+## 1. POST `/api/v1/auth/telegram`
 
 Проверяет `initData` из `Telegram.WebApp.initData` и возвращает JWT.
 
@@ -64,7 +66,7 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 
 ---
 
-## 2. GET `/api/exercises/next`
+## 2. GET `/api/v1/exercises/next`
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -93,7 +95,7 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 
 ---
 
-## 3. POST `/api/assess`
+## 3. POST `/api/v1/assess`
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -145,7 +147,7 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 
 ---
 
-## 4. GET `/api/progress`
+## 4. GET `/api/v1/progress`
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -164,8 +166,9 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 Правила:
 
 - `attempts_count` — общее число попыток пользователя;
-- `weak_phonemes` — до 5 звуков с наименьшим средним баллом, только по тем
-  звукам, где есть хотя бы одна попытка;
+- `weak_phonemes` — звуки со средним баллом ниже 70, отсортированы по
+  возрастанию; учитываются только звуки, где есть хотя бы одна попытка;
+  клиент показывает первые 5;
 - `avg_score` — целое 0–100 (округление среднего);
 - при отсутствии попыток: `{ "attempts_count": 0, "weak_phonemes": [] }`.
 
@@ -192,7 +195,7 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 
 ## Известные ограничения MVP
 
-- `GET /api/exercises` (список) не нужен: клиент берёт только `next`.
+- `GET /api/v1/exercises` (список) не нужен: клиент берёт только `next`.
 - Аудио не хранится; повторное прослушивание на клиенте — локальное.
 - Нет refresh-токена: JWT живёт достаточно долго для одной сессии Mini App.
 - Нет эндпоинта удаления прогресса.
@@ -204,7 +207,7 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 - В проде Mini App и backend должны быть на одном HTTPS-домене.
   Если домены разные — backend обязан отдавать CORS-заголовки для origin
   Mini App, включая `Authorization`.
-- Клиент таймаутит `POST /api/assess` через 45 секунд, остальные запросы —
+- Клиент таймаутит `POST /api/v1/assess` через 45 секунд, остальные запросы —
   через 20 секунд. GET-запросы один раз повторяются при сетевой ошибке/5xx.
 - Клиент отправляет WAV (`audio/wav`, PCM16, 16 кГц, моно) в поле `audio`;
   старые клиенты могут присылать webm/ogg.
