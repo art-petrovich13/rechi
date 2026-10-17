@@ -25,6 +25,21 @@ Telegram Mini App для тренировки речи: восстановлен
 
 ---
 
+## Скриншоты
+
+Сняты в headless Chrome на viewport 390×844 (DPR 2).
+
+| Home | Упражнение |
+|---|---|
+| ![Home](docs/screenshots/home.png) | ![Упражнение](docs/screenshots/exercise.png) |
+
+| Результат | «Как заниматься» |
+|---|---|
+| ![Результат](docs/screenshots/result.png) | ![Онбординг](docs/screenshots/how-it-works.png) |
+
+Ещё есть [`auth-error.png`](docs/screenshots/auth-error.png) — экран
+«Откройте через Telegram» в production-сборке без `initData`.
+
 ## Стек
 
 | Компонент | Версия |
