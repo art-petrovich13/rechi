@@ -28,7 +28,7 @@ void main() {
         expect(request.method, 'POST');
         expect(
           request.url.toString(),
-          'https://api.example.com/api/auth/telegram',
+          'https://api.example.com/api/v1/auth/telegram',
         );
         expect(request.headers['content-type'], contains('application/json'));
         final Map<String, Object?> body =
@@ -89,7 +89,7 @@ void main() {
     test('ставит Bearer-токен и читает упражнение', () async {
       final MockClient client = MockClient((http.Request request) async {
         expect(request.headers['Authorization'], 'Bearer jwt');
-        expect(request.url.path, '/api/exercises/next');
+        expect(request.url.path, '/api/v1/exercises/next');
 
         return _jsonResponse(<String, Object?>{
           'id': 5,
@@ -190,7 +190,7 @@ void main() {
     test('отправляет multipart с аудио и exercise_id', () async {
       final MockClient client = MockClient((http.Request request) async {
         expect(request.method, 'POST');
-        expect(request.url.path, '/api/assess');
+        expect(request.url.path, '/api/v1/assess');
         expect(request.headers['Authorization'], 'Bearer jwt');
         expect(
           request.headers['content-type'],

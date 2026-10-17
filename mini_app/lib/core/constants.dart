@@ -15,10 +15,10 @@ const String apiBaseUrl = String.fromEnvironment(
 const bool useMockApi = bool.fromEnvironment('MOCK_API', defaultValue: false);
 
 /// Эндпоинты Frozen API Contract.
-const String epAuthTelegram = '/api/auth/telegram';
-const String epExercisesNext = '/api/exercises/next';
-const String epAssess = '/api/assess';
-const String epProgress = '/api/progress';
+const String epAuthTelegram = '/api/v1/auth/telegram';
+const String epExercisesNext = '/api/v1/exercises/next';
+const String epAssess = '/api/v1/assess';
+const String epProgress = '/api/v1/progress';
 
 /// Таймауты запросов.
 const Duration apiTimeout = Duration(seconds: 20);
