@@ -29,6 +29,11 @@ class WordIllustration extends StatelessWidget {
     'дом': '🏠',
     'юла': '🌀',
     'ёлка': '🌲',
+    'сок': '🧃',
+    'сумка': '👜',
+    'шуба': '🧥',
+    'лук': '🧅',
+    'лодка': '🚤',
   };
 
   String get _emoji {
