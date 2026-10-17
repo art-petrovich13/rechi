@@ -105,14 +105,13 @@ function telegramInjection() {
   return `<script>
   (() => {
     const existing = window.Telegram && window.Telegram.WebApp;
-    const hasRealTelegramData =
+    const isRealTelegram =
       existing &&
-      existing.initData &&
       existing.platform &&
       existing.platform !== 'unknown';
 
-    // В настоящем Telegram ничего не подменяем: SDK уже дал initData.
-    if (hasRealTelegramData) {
+    // В настоящем Telegram ничего не подменяем: SDK уже дал реальные данные.
+    if (isRealTelegram) {
       return;
     }
 
