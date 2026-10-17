@@ -82,10 +82,7 @@ class AuthService extends ChangeNotifier {
     } on ApiException catch (error) {
       debugPrint('Auth failed: $error');
       if (error.isNetwork || error.isTimeout) {
-        _fail(
-          AuthErrorKind.network,
-          'Проверьте интернет и попробуйте снова.',
-        );
+        _fail(AuthErrorKind.network, 'Проверьте интернет и попробуйте снова.');
       } else if (error.isUnauthorized) {
         _fail(
           AuthErrorKind.unauthorized,
