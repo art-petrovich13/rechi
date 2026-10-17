@@ -15,7 +15,9 @@ http.Response _jsonResponse(Object body, {int status = 200}) {
   return http.Response.bytes(
     utf8.encode(jsonEncode(body)),
     status,
-    headers: <String, String>{'content-type': 'application/json; charset=utf-8'},
+    headers: <String, String>{
+      'content-type': 'application/json; charset=utf-8',
+    },
   );
 }
 
@@ -24,7 +26,10 @@ void main() {
     test('отправляет initData и парсит ответ', () async {
       final MockClient client = MockClient((http.Request request) async {
         expect(request.method, 'POST');
-        expect(request.url.toString(), 'https://api.example.com/api/auth/telegram');
+        expect(
+          request.url.toString(),
+          'https://api.example.com/api/auth/telegram',
+        );
         expect(request.headers['content-type'], contains('application/json'));
         final Map<String, Object?> body =
             jsonDecode(request.body) as Map<String, Object?>;
@@ -50,10 +55,9 @@ void main() {
 
     test('отдаёт понятную ошибку для 401', () async {
       final MockClient client = MockClient((http.Request request) async {
-        return _jsonResponse(
-          <String, Object?>{'detail': 'Invalid initData'},
-          status: 401,
-        );
+        return _jsonResponse(<String, Object?>{
+          'detail': 'Invalid initData',
+        }, status: 401);
       });
 
       final ApiClient api = ApiClient(
@@ -66,7 +70,11 @@ void main() {
         throwsA(
           isA<ApiException>()
               .having((ApiException e) => e.statusCode, 'status', 401)
-              .having((ApiException e) => e.isUnauthorized, 'unauthorized', true)
+              .having(
+                (ApiException e) => e.isUnauthorized,
+                'unauthorized',
+                true,
+              )
               .having(
                 (ApiException e) => e.serverDetail,
                 'detail',
@@ -127,10 +135,9 @@ void main() {
 
     test('маппит 502 в ошибку сервиса', () async {
       final MockClient client = MockClient((http.Request request) async {
-        return _jsonResponse(
-          <String, Object?>{'detail': 'Speech service unavailable'},
-          status: 502,
-        );
+        return _jsonResponse(<String, Object?>{
+          'detail': 'Speech service unavailable',
+        }, status: 502);
       });
 
       final ApiClient api = ApiClient(
@@ -185,7 +192,10 @@ void main() {
         expect(request.method, 'POST');
         expect(request.url.path, '/api/assess');
         expect(request.headers['Authorization'], 'Bearer jwt');
-        expect(request.headers['content-type'], startsWith('multipart/form-data'));
+        expect(
+          request.headers['content-type'],
+          startsWith('multipart/form-data'),
+        );
 
         final String body = utf8.decode(
           request.bodyBytes,

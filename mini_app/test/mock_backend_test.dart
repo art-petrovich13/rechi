@@ -47,7 +47,10 @@ void main() {
       );
 
       expect(assessment.score, inInclusiveRange(0, 100));
-      expect(assessment.phonemeScores.keys, containsAll(exercise.phonemes.toSet()));
+      expect(
+        assessment.phonemeScores.keys,
+        containsAll(exercise.phonemes.toSet()),
+      );
       for (final int score in assessment.phonemeScores.values) {
         expect(score, inInclusiveRange(0, 100));
       }
@@ -61,10 +64,7 @@ void main() {
       final Exercise exercise = await backend.nextExercise();
 
       for (var i = 0; i < 3; i++) {
-        await backend.assess(
-          audio: Uint8List(0),
-          exerciseId: exercise.id,
-        );
+        await backend.assess(audio: Uint8List(0), exerciseId: exercise.id);
       }
 
       final Progress progress = await backend.progress();

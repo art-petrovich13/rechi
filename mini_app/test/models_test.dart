@@ -85,12 +85,7 @@ void main() {
     test('сохраняет порядок звуков упражнения', () {
       final Assessment assessment = Assessment.fromJson(<String, Object?>{
         'score': 80,
-        'phoneme_scores': <String, Object?>{
-          'Б': 90,
-          'Р': 45,
-          'А': 95,
-          'Ы': 88,
-        },
+        'phoneme_scores': <String, Object?>{'Б': 90, 'Р': 45, 'А': 95, 'Ы': 88},
         'problematic': <String>['Р'],
       });
 
@@ -98,10 +93,12 @@ void main() {
         <String>['Р', 'Ы', 'Б', 'А'],
       );
 
-      expect(
-        entries.map((MapEntry<String, int> entry) => entry.key),
-        <String>['Р', 'Ы', 'Б', 'А'],
-      );
+      expect(entries.map((MapEntry<String, int> entry) => entry.key), <String>[
+        'Р',
+        'Ы',
+        'Б',
+        'А',
+      ]);
     });
 
     test('ограничивает оценку диапазоном 0–100', () {
