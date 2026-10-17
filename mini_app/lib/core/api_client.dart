@@ -91,28 +91,23 @@ class ApiClient {
       return mock.assess(audio: audio, exerciseId: exerciseId);
     }
 
-    final http.MultipartRequest request = http.MultipartRequest(
-      'POST',
-      _uri(epAssess),
-    )
-      ..headers.addAll(_authHeaders)
-      ..fields['exercise_id'] = '$exerciseId'
-      ..files.add(
-        http.MultipartFile.fromBytes(
-          'audio',
-          audio,
-          filename: recordingFileName,
-          contentType: MediaType.parse(recordingMimeType),
-        ),
-      );
+    final http.MultipartRequest request =
+        http.MultipartRequest('POST', _uri(epAssess))
+          ..headers.addAll(_authHeaders)
+          ..fields['exercise_id'] = '$exerciseId'
+          ..files.add(
+            http.MultipartFile.fromBytes(
+              'audio',
+              audio,
+              filename: recordingFileName,
+              contentType: MediaType.parse(recordingMimeType),
+            ),
+          );
 
-    final http.Response response = await _send(
-      () async {
-        final http.StreamedResponse streamed = await _http.send(request);
-        return http.Response.fromStream(streamed);
-      },
-      timeout: assessTimeout,
-    );
+    final http.Response response = await _send(() async {
+      final http.StreamedResponse streamed = await _http.send(request);
+      return http.Response.fromStream(streamed);
+    }, timeout: assessTimeout);
     return Assessment.fromJson(_decodeMap(response));
   }
 
@@ -206,8 +201,7 @@ class ApiClient {
       422 => 'Сервер не принял данные. Попробуйте ещё раз.',
       429 => 'Слишком много попыток. Подождите немного.',
       500 => 'На сервере произошла ошибка. Попробуйте позже.',
-      502 || 503 || 504 =>
-        'Сервис анализа речи сейчас недоступен. Попробуйте ещё раз через минуту.',
+      502 || 503 || 504 => 'Сервис анализа речи сейчас недоступен. Попробуйте ещё раз через минуту.',
       _ => 'Не удалось получить ответ от сервера.',
     };
 

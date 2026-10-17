@@ -10,9 +10,9 @@ class Assessment {
 
   factory Assessment.fromJson(Map<String, Object?> json) {
     final Map<String, int> scores = readIntMap(json['phoneme_scores']);
-    final List<String> problematic = readStringList(
-      json['problematic'],
-    ).where(scores.containsKey).toList(growable: false);
+    final List<String> problematic = readStringList(json['problematic'])
+        .where(scores.containsKey)
+        .toList(growable: false);
 
     return Assessment(
       score: readInt(json['score']).clamp(0, 100),

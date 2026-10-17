@@ -10,18 +10,16 @@ class Progress {
         ? rawWeak
               .whereType<Map<Object?, Object?>>()
               .map(
-                (Map<Object?, Object?> item) => WeakPhoneme.fromJson(
-                  item.cast<String, Object?>(),
-                ),
+                (Map<Object?, Object?> item) =>
+                    WeakPhoneme.fromJson(item.cast<String, Object?>()),
               )
               .where((WeakPhoneme item) => item.phoneme.isNotEmpty)
               .toList(growable: false)
         : const <WeakPhoneme>[];
 
-    final List<WeakPhoneme> sorted = List<WeakPhoneme>.of(weak)
-      ..sort(
-        (WeakPhoneme a, WeakPhoneme b) => a.avgScore.compareTo(b.avgScore),
-      );
+    final List<WeakPhoneme> sorted = List<WeakPhoneme>.of(
+      weak,
+    )..sort((WeakPhoneme a, WeakPhoneme b) => a.avgScore.compareTo(b.avgScore));
 
     return Progress(
       attemptsCount: readInt(json['attempts_count']),

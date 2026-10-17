@@ -206,14 +206,17 @@ class MockBackend {
 
     final int overall = scores.isEmpty
         ? 0
-        : (scores.values.reduce((int a, int b) => a + b) / scores.length).round();
-    final List<String> problematic = scores.entries
-        .where((MapEntry<String, int> entry) => entry.value < problemScoreThreshold)
-        .map((MapEntry<String, int> entry) => entry.key)
-        .toList(growable: false)
-      ..sort(
-        (String a, String b) => scores[a]!.compareTo(scores[b]!),
-      );
+        : (scores.values.reduce((int a, int b) => a + b) / scores.length)
+              .round();
+    final List<String> problematic =
+        scores.entries
+            .where(
+              (MapEntry<String, int> entry) =>
+                  entry.value < problemScoreThreshold,
+            )
+            .map((MapEntry<String, int> entry) => entry.key)
+            .toList(growable: false)
+          ..sort((String a, String b) => scores[a]!.compareTo(scores[b]!));
 
     final Assessment assessment = Assessment(
       score: overall,
@@ -236,18 +239,19 @@ class MockBackend {
       }
     }
 
-    final List<WeakPhoneme> weak = byPhoneme.entries
-        .map((MapEntry<String, List<int>> entry) {
-          final int sum = entry.value.reduce((int a, int b) => a + b);
-          return WeakPhoneme(
-            phoneme: entry.key,
-            avgScore: (sum / entry.value.length).round(),
+    final List<WeakPhoneme> weak =
+        byPhoneme.entries
+            .map((MapEntry<String, List<int>> entry) {
+              final int sum = entry.value.reduce((int a, int b) => a + b);
+              return WeakPhoneme(
+                phoneme: entry.key,
+                avgScore: (sum / entry.value.length).round(),
+              );
+            })
+            .toList(growable: false)
+          ..sort(
+            (WeakPhoneme a, WeakPhoneme b) => a.avgScore.compareTo(b.avgScore),
           );
-        })
-        .toList(growable: false)
-      ..sort(
-        (WeakPhoneme a, WeakPhoneme b) => a.avgScore.compareTo(b.avgScore),
-      );
 
     return Progress(
       attemptsCount: _attempts.length,

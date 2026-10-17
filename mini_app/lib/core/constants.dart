@@ -12,10 +12,7 @@ const String apiBaseUrl = String.fromEnvironment(
 /// Принудительный демо-режим без backend.
 ///
 /// Сборка для показа: `--dart-define=MOCK_API=true`.
-const bool useMockApi = bool.fromEnvironment(
-  'MOCK_API',
-  defaultValue: false,
-);
+const bool useMockApi = bool.fromEnvironment('MOCK_API', defaultValue: false);
 
 /// Эндпоинты Frozen API Contract.
 const String epAuthTelegram = '/api/auth/telegram';
