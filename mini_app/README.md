@@ -104,6 +104,7 @@ Backend должен разрешать CORS для origin, с которого 
 ```bash
 flutter build web --release \
   --dart-define=MOCK_API=true \
+  --no-web-resources-cdn \
   --no-wasm-dry-run
 ```
 
@@ -112,17 +113,17 @@ flutter build web --release \
 ```bash
 flutter build web --release \
   --dart-define=API_BASE_URL=https://rechi.example.com \
+  --no-web-resources-cdn \
   --no-wasm-dry-run
 ```
 
 Результат — `build/web`. Его нужно раздать по HTTPS (FastAPI StaticFiles,
 nginx или Caddy). Mini App в Telegram работает только по HTTPS.
 
-Полезно для обновлений без «залипшего» кэша:
-
-```bash
-flutter build web --release --pwa-strategy=none --no-wasm-dry-run
-```
+Для мероприятия лучше собирать с `--no-web-resources-cdn`: тогда CanvasKit
+загружается с вашего домена, а не с `gstatic.com`, и приложение меньше
+зависит от внешнего интернета. Если обновления должны подхватываться сразу,
+добавьте `--pwa-strategy=none` (отключает service worker).
 
 ---
 
@@ -142,6 +143,25 @@ flutter build web --release \
 
 `build/web` не коммитится. Передайте его backend-разработчику или
 разверните отдельно.
+
+### Куда монтировать статику
+
+- Если FastAPI/nginx раздаёт `build/web` **с корня** (`https://rechi.example.com/`),
+  используйте сборку по умолчанию.
+- Если статика живёт по пути **`/app/`** (как в общем плане MVP), добавьте
+  `--base-href /app/`:
+
+```bash
+flutter build web --release \
+  --base-href /app/ \
+  --dart-define=API_BASE_URL=https://rechi.example.com \
+  --no-web-resources-cdn \
+  --pwa-strategy=none \
+  --no-wasm-dry-run
+```
+
+Уточните путь у Андрея до деплоя: от `base href` зависят пути к `assets/`
+и `canvaskit/`. API-запросы всегда идут на абсолютный `API_BASE_URL`.
 
 ---
 
