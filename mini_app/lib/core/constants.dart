@@ -9,6 +9,15 @@ const String apiBaseUrl = String.fromEnvironment(
   defaultValue: 'http://localhost:8000',
 );
 
+/// Использовать origin страницы как базу API.
+///
+/// Удобно для dev-прокси и HTTPS-туннелей: клиент и backend живут
+/// на одном origin, поэтому туннель можно менять без пересборки.
+const bool useSameOriginApi = bool.fromEnvironment(
+  'SAME_ORIGIN_API',
+  defaultValue: false,
+);
+
 /// Принудительный демо-режим без backend.
 ///
 /// Сборка для показа: `--dart-define=MOCK_API=true`.

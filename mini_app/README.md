@@ -171,7 +171,7 @@ python3 tool/fake_speechsuper.py
 cd mini_app
 flutter build web --release \
   --base-href /app/ \
-  --dart-define=API_BASE_URL=http://localhost:8080 \
+  --dart-define=SAME_ORIGIN_API=true \
   --no-web-resources-cdn
 
 DEV_BOT_TOKEN=123456:TEST_TOKEN_FOR_LOCAL \
@@ -180,6 +180,10 @@ node tool/dev_proxy.mjs
 ```
 
 Открыть: <http://localhost:8080/app/>
+
+`SAME_ORIGIN_API=true` означает, что клиент ходит в `/api` на том же
+домене, где открыт. Поэтому один и тот же билд работает и на
+`localhost:8080`, и на HTTPS-туннеле — пересобирать под каждый URL не нужно.
 
 `DEV_BOT_TOKEN` должен совпадать с `BOT_TOKEN` backend. Прокси:
 - раздаёт Flutter-сборку по `/app/`;
@@ -247,6 +251,7 @@ nginx или Caddy). Mini App в Telegram работает только по HTT
 | Dart define | Значение по умолчанию | Назначение |
 |---|---|---|
 | `API_BASE_URL` | `http://localhost:8000` | адрес backend |
+| `SAME_ORIGIN_API` | `false` | брать origin страницы как базу API (удобно для прокси/туннеля) |
 | `MOCK_API` | `false` | принудительный демо-режим |
 
 ```bash

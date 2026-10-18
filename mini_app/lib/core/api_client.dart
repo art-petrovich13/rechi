@@ -21,9 +21,20 @@ class ApiClient {
     http.Client? httpClient,
     MockBackend? mockBackend,
     bool? mock,
-  }) : _baseUrl = _normalize(baseUrl ?? apiBaseUrl),
+  }) : _baseUrl = _normalize(baseUrl ?? _defaultBaseUrl()),
        _http = httpClient ?? http.Client(),
        _mock = mockBackend ?? ((mock ?? useMockApi) ? MockBackend() : null);
+
+  static String _defaultBaseUrl() {
+    if (!useSameOriginApi) {
+      return apiBaseUrl;
+    }
+    final String origin = Uri.base.origin;
+    if (origin.isEmpty || origin == 'null') {
+      return apiBaseUrl;
+    }
+    return origin;
+  }
 
   final String _baseUrl;
   final http.Client _http;
