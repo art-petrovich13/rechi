@@ -186,7 +186,7 @@ class _AdviceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.warningSoft,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

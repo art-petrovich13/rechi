@@ -201,14 +201,14 @@ class _DemoBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
+        color: AppColors.primarySoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.science_outlined, size: 20, color: AppColors.warning),
+          Icon(Icons.science_outlined, size: 20, color: AppColors.primaryDark),
           SizedBox(width: 10),
           Expanded(
             child: Text(

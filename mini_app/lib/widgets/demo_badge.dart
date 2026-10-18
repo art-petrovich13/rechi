@@ -12,21 +12,25 @@ class DemoBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: AppColors.accentSoft,
+          color: AppColors.primarySoft,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.45)),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.science_outlined, size: 14, color: AppColors.warning),
+            Icon(
+              Icons.science_outlined,
+              size: 14,
+              color: AppColors.primaryDark,
+            ),
             SizedBox(width: 4),
             Text(
               'Демо',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppColors.warning,
+                color: AppColors.primaryDark,
               ),
             ),
           ],
