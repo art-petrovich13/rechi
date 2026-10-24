@@ -96,7 +96,7 @@ class SpeechSuperClient:
         except ValueError as error:
             raise SpeechSuperResponseError("SpeechSuper returned invalid JSON") from error
 
-        return parse_assessment_response(payload)
+        return parse_assessment_response(payload, reference_text)
 
     @staticmethod
     def _select_core_type(reference_text: str) -> str:

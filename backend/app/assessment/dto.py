@@ -1,6 +1,8 @@
 """Внутренние структуры оценки произношения."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from app.integrations.speechsuper.dto import WordAssessment
 
 
 @dataclass(frozen=True, slots=True)
@@ -10,3 +12,4 @@ class AssessmentResult:
     score: int
     phoneme_scores: dict[str, int]
     problematic: list[str]
+    words: tuple[WordAssessment, ...] = field(default_factory=tuple)

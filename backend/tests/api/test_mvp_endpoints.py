@@ -11,7 +11,7 @@ from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.db import get_db
 from app.api.dependencies.speechsuper import get_speech_super_client
 from app.data.models import Exercise, User
-from app.integrations.speechsuper.dto import SpeechAssessment
+from app.integrations.speechsuper.dto import SpeechAssessment, WordAssessment
 from app.main import app
 
 
@@ -32,6 +32,13 @@ class MvpEndpointTests(unittest.TestCase):
             return_value=SpeechAssessment(
                 score=78,
                 phoneme_scores={"Р": 55, "Ы": 91},
+                words=(
+                    WordAssessment(
+                        text="рыба",
+                        score=78,
+                        phoneme_scores={"Р": 55, "Ы": 91},
+                    ),
+                ),
             )
         )
         self._override_dependencies(db, speech_super)
@@ -50,9 +57,36 @@ class MvpEndpointTests(unittest.TestCase):
                 "score": 78,
                 "phoneme_scores": {"Р": 55, "Ы": 91},
                 "problematic": ["Р"],
+                "words": [
+                    {
+                        "text": "рыба",
+                        "score": 78,
+                        "phoneme_scores": {"Р": 55, "Ы": 91},
+                    }
+                ],
             },
         )
         db.commit.assert_awaited_once()
+
+    def test_next_exercise_returns_category(self) -> None:
+        db = MagicMock()
+        db.scalar = AsyncMock(
+            return_value=Exercise(
+                id=16,
+                text="мама мыла раму",
+                phonemes=["М", "А", "Ы", "Л", "Р", "У"],
+                difficulty=2,
+                category="phrase",
+            )
+        )
+        self._override_dependencies(db, MagicMock())
+
+        with TestClient(app) as client:
+            response = client.get("/api/v1/exercises/next?category=phrase")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["category"], "phrase")
+        self.assertEqual(response.json()["text"], "мама мыла раму")
 
     def test_progress_returns_aggregated_weak_phonemes(self) -> None:
         db = MagicMock()

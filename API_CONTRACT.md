@@ -70,6 +70,13 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
 
 **Headers:** `Authorization: Bearer <token>`
 
+**Query (необязательно):** `category=word|phrase|sentence`
+
+- `word` — одно слово;
+- `phrase` — словосочетание из 2–3 слов;
+- `sentence` — короткое предложение из 4–6 слов;
+- без параметра — любое упражнение.
+
 **Response 200:**
 
 ```json
@@ -77,22 +84,25 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
   "id": 5,
   "text": "рыба",
   "phonemes": ["Р", "Ы", "Б", "А"],
-  "difficulty": 2
+  "difficulty": 2,
+  "category": "word"
 }
 ```
 
 Правила:
 
 - `id` — целое, уникальное;
-- `text` — слово или короткая фраза на русском (фраза — до 5 слов);
+- `text` — слово, словосочетание или короткое предложение (4–6 слов);
 - `phonemes` — уникальные звуки в порядке первого появления; заглавные
-  русские буквы; для фраз это объединение звуков всех слов;
+  русские буквы; для фраз и предложений это объединение звуков всех слов;
 - `difficulty` — целое 1–3;
+- `category` — `word`, `phrase` или `sentence`;
 - сервер не повторяет последнее выданное пользователю упражнение подряд,
   если в базе больше одного упражнения.
 
+**Response 422:** неизвестная категория (валидация FastAPI).
 **Response 401:** невалидный/просроченный токен.
-**Response 404:** упражнения закончились (клиент показывает «На сегодня всё»).
+**Response 404:** упражнений в категории нет (клиент показывает пустое состояние).
 
 ---
 
@@ -110,7 +120,7 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
 **Форматы аудио:**
 
 - основной: `audio/wav` (PCM16, 16 кГц, моно) — так пишет Mini App;
-  максимум 10 секунд, поэтому фразы должны быть короткими;
+  максимум 20 секунд; для предложений 4–6 слов этого достаточно;
 - допустимые альтернативы: `audio/webm`, `audio/ogg` (старые клиенты и бот).
 
 **Response 200:**
@@ -119,7 +129,19 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
 {
   "score": 78,
   "phoneme_scores": { "Р": 45, "Ы": 88, "Б": 90, "А": 95 },
-  "problematic": ["Р"]
+  "problematic": ["Р"],
+  "words": [
+    {
+      "text": "мама",
+      "score": 91,
+      "phoneme_scores": { "М": 90, "А": 92 }
+    },
+    {
+      "text": "мыла",
+      "score": 84,
+      "phoneme_scores": { "М": 88, "Ы": 80, "Л": 85, "А": 83 }
+    }
+  ]
 }
 ```
 
@@ -137,6 +159,13 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
   одного слова — `word.eval.ru`; клиент об этом не думает;
 - `problematic` — подмножество ключей с оценкой ниже порога (рекомендуется < 60),
   отсортировано по возрастанию оценки;
+- `words` — разбор по словам в порядке произношения; для одного слова массив
+  из одного элемента. У каждого слова:
+  - `text` — слово из ответа SpeechSuper;
+  - `score` — overall/pronunciation слова;
+  - `phoneme_scores` — уникальные звуки слова с баллами;
+- агрегированные `phoneme_scores` по-прежнему содержат минимум по всем словам;
+- старые клиенты могут игнорировать `words`;
 - аудио не сохраняется на диске и не пишется в БД;
 - результат попытки сохраняется в `attempts` вместе с `phoneme_scores`.
 
@@ -194,8 +223,8 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
 |---|---|
 | `AuthResponse { token, user }` | `AuthResponse` |
 | `User { id, first_name }` | `User { id, firstName }` |
-| `Exercise { id, text, phonemes, difficulty }` | `Exercise` |
-| `Assessment { score, phoneme_scores, problematic }` | `Assessment { score, phonemeScores, problematic }` |
+| `Exercise { id, text, phonemes, difficulty, category }` | `Exercise` |
+| `Assessment { score, phoneme_scores, problematic, words }` | `Assessment { score, phonemeScores, problematic, words }` |
 | `Progress { attempts_count, weak_phonemes }` | `Progress { attemptsCount, weakPhonemes }` |
 | `WeakPhoneme { phoneme, avg_score }` | `WeakPhoneme { phoneme, avgScore }` |
 

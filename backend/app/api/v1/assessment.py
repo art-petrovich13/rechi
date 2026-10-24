@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.db import get_db
 from app.api.dependencies.speechsuper import get_speech_super_client
-from app.api.v1.dto.assessment import AssessmentResponse
+from app.api.v1.dto.assessment import AssessmentResponse, WordAssessmentResponse
 from app.api.v1.dto.common import ErrorResponse
 from app.assessment.audio.exceptions import AudioValidationError
 from app.assessment.audio.validator import MAX_AUDIO_BYTES, validate_wav
@@ -84,4 +84,12 @@ async def assess_audio(
         score=result.score,
         phoneme_scores=result.phoneme_scores,
         problematic=result.problematic,
+        words=[
+            WordAssessmentResponse(
+                text=word.text,
+                score=word.score,
+                phoneme_scores=word.phoneme_scores,
+            )
+            for word in result.words
+        ],
     )

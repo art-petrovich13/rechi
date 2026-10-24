@@ -48,4 +48,5 @@ async def assess_pronunciation(
         score=assessment.score,
         phoneme_scores=assessment.phoneme_scores,
         problematic=problematic,
+        words=assessment.words,
     )

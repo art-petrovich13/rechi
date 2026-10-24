@@ -17,9 +17,9 @@ EXPECTED_SAMPLE_RATE = 16_000
 EXPECTED_CHANNELS = 1
 EXPECTED_SAMPLE_WIDTH = 2
 MIN_DURATION_SECONDS = 0.6
-MAX_DURATION_SECONDS = 10.0
+MAX_DURATION_SECONDS = 20.0
 MIN_WAV_HEADER_BYTES = 44
-MAX_AUDIO_BYTES = 320_044
+MAX_AUDIO_BYTES = 640_044
 
 
 def validate_wav(audio_bytes: bytes, content_type: str | None) -> ValidatedAudio:
@@ -45,7 +45,7 @@ def validate_wav(audio_bytes: bytes, content_type: str | None) -> ValidatedAudio
         raise InvalidWavError("WAV audio data is truncated")
 
     if not MIN_DURATION_SECONDS <= duration_seconds <= MAX_DURATION_SECONDS:
-        raise InvalidAudioDurationError("Audio duration must be between 0.6 and 10 seconds")
+        raise InvalidAudioDurationError("Audio duration must be between 0.6 and 20 seconds")
 
     return ValidatedAudio(
         data=audio_bytes,

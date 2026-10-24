@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from app.integrations.speechsuper.dto import SpeechAssessment
+from app.integrations.speechsuper.dto import SpeechAssessment, WordAssessment
 from app.integrations.speechsuper.exceptions import (
     SpeechSuperAudioRejectedError,
     SpeechSuperResponseError,
@@ -24,7 +24,10 @@ _PHONEME_REPLACEMENTS = str.maketrans(
 )
 
 
-def parse_assessment_response(payload: Any) -> SpeechAssessment:
+def parse_assessment_response(
+    payload: Any,
+    reference_text: str | None = None,
+) -> SpeechAssessment:
     """Преобразует ответ SpeechSuper в результат нашего приложения."""
 
     if not isinstance(payload, dict):
@@ -43,37 +46,91 @@ def parse_assessment_response(payload: Any) -> SpeechAssessment:
         ]
         raise SpeechSuperAudioRejectedError("; ".join(messages) or "Audio was rejected")
 
-    score = _parse_score(result.get("overall"))
-    words = result.get("words")
-    if not isinstance(words, list) or not words:
+    overall_score = _parse_score(result.get("overall"))
+    raw_words = result.get("words")
+    if not isinstance(raw_words, list) or not raw_words:
         raise SpeechSuperResponseError("SpeechSuper response has no words")
 
+    reference_words = (reference_text or "").split()
+    words: list[WordAssessment] = []
     phoneme_scores: dict[str, int] = {}
-    for word in words:
+
+    for index, word in enumerate(raw_words):
         if not isinstance(word, dict):
             raise SpeechSuperResponseError("Invalid word result")
 
-        phonemes = word.get("phonemes")
-        if not isinstance(phonemes, list):
-            raise SpeechSuperResponseError("SpeechSuper response has no phonemes")
-
-        for phoneme in phonemes:
-            if not isinstance(phoneme, dict):
-                raise SpeechSuperResponseError("Invalid phoneme result")
-
-            name = _normalize_phoneme(phoneme.get("phoneme"))
-            phoneme_score = _parse_score(phoneme.get("pronunciation"))
+        word_phonemes = _parse_word_phonemes(word)
+        for name, score in word_phonemes.items():
             previous_score = phoneme_scores.get(name)
             phoneme_scores[name] = (
-                phoneme_score
-                if previous_score is None
-                else min(previous_score, phoneme_score)
+                score if previous_score is None else min(previous_score, score)
             )
+
+        text = _word_text(word, reference_words, index)
+        word_score = _word_score(word, overall_score)
+        words.append(
+            WordAssessment(
+                text=text,
+                score=word_score,
+                phoneme_scores=word_phonemes,
+            )
+        )
 
     if not phoneme_scores:
         raise SpeechSuperResponseError("SpeechSuper response has empty phonemes")
 
-    return SpeechAssessment(score=score, phoneme_scores=phoneme_scores)
+    return SpeechAssessment(
+        score=overall_score,
+        phoneme_scores=phoneme_scores,
+        words=tuple(words),
+    )
+
+
+def _parse_word_phonemes(word: dict[str, Any]) -> dict[str, int]:
+    """Собирает уникальные звуки одного слова."""
+
+    phonemes = word.get("phonemes")
+    if not isinstance(phonemes, list) or not phonemes:
+        raise SpeechSuperResponseError("SpeechSuper response has no phonemes")
+
+    scores: dict[str, int] = {}
+    for phoneme in phonemes:
+        if not isinstance(phoneme, dict):
+            raise SpeechSuperResponseError("Invalid phoneme result")
+
+        name = _normalize_phoneme(phoneme.get("phoneme"))
+        phoneme_score = _parse_score(phoneme.get("pronunciation"))
+        previous_score = scores.get(name)
+        scores[name] = (
+            phoneme_score if previous_score is None else min(previous_score, phoneme_score)
+        )
+    return scores
+
+
+def _word_text(
+    word: dict[str, Any],
+    reference_words: list[str],
+    index: int,
+) -> str:
+    """Возвращает текст слова из ответа или из reference text."""
+
+    value = word.get("word")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if index < len(reference_words):
+        return reference_words[index]
+    return ""
+
+
+def _word_score(word: dict[str, Any], fallback: int) -> int:
+    """Берёт overall/pronunciation слова, иначе общий балл."""
+
+    scores = word.get("scores")
+    if isinstance(scores, dict):
+        for key in ("overall", "pronunciation"):
+            if key in scores:
+                return _parse_score(scores[key])
+    return fallback
 
 
 def _parse_score(value: Any) -> int:

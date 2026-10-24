@@ -33,6 +33,45 @@ class SpeechSuperParserTests(unittest.TestCase):
         self.assertEqual(result.score, 78)
         self.assertEqual(result.phoneme_scores, {"Р": 40, "А": 90})
 
+    def test_parses_word_scores_and_phonemes(self) -> None:
+        payload = {
+            "result": {
+                "overall": 72,
+                "words": [
+                    {
+                        "word": "мама",
+                        "scores": {"overall": 80, "pronunciation": 81},
+                        "phonemes": [
+                            {"phoneme": "м", "pronunciation": 90},
+                            {"phoneme": "a", "pronunciation": 70},
+                            {"phoneme": "м", "pronunciation": 85},
+                        ],
+                    },
+                    {
+                        "word": "мыла",
+                        "scores": {"pronunciation": 64},
+                        "phonemes": [
+                            {"phoneme": "м", "pronunciation": 60},
+                            {"phoneme": "ы", "pronunciation": 80},
+                        ],
+                    },
+                ],
+            }
+        }
+
+        result = parse_assessment_response(payload, "мама мыла")
+
+        self.assertEqual(result.score, 72)
+        self.assertEqual(result.words[0].text, "мама")
+        self.assertEqual(result.words[0].score, 80)
+        self.assertEqual(result.words[0].phoneme_scores, {"М": 85, "А": 70})
+        self.assertEqual(result.words[1].text, "мыла")
+        self.assertEqual(result.words[1].score, 64)
+        self.assertEqual(
+            result.phoneme_scores,
+            {"М": 60, "А": 70, "Ы": 80},
+        )
+
     def test_normalizes_latin_vowels_to_cyrillic(self) -> None:
         payload = {
             "result": {
