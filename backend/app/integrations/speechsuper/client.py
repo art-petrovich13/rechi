@@ -20,10 +20,11 @@ from app.integrations.speechsuper.signatures import create_signatures
 
 
 CORE_TYPE = "word.eval.ru"
+SENTENCE_CORE_TYPE = "sent.eval.ru"
 
 
 class SpeechSuperClient:
-    """Отправляет русское слово и WAV-аудио в SpeechSuper."""
+    """Отправляет русское слово/фразу и WAV-аудио в SpeechSuper."""
 
     def __init__(
         self,
@@ -39,7 +40,7 @@ class SpeechSuperClient:
         self._http_client = http_client
         self._app_key = app_key
         self._secret_key = secret_key
-        self._url = f"{base_url.rstrip('/')}/{CORE_TYPE}"
+        self._base_url = base_url.rstrip("/")
 
     @classmethod
     def from_settings(cls, http_client: httpx.AsyncClient) -> "SpeechSuperClient":
@@ -58,12 +59,18 @@ class SpeechSuperClient:
         reference_text: str,
         user_id: int,
     ) -> SpeechAssessment:
-        """Оценивает произношение одного русского слова."""
+        """Оценивает русское слово или короткую фразу."""
 
-        request_payload = self._build_request_payload(audio, reference_text, user_id)
+        core_type = self._select_core_type(reference_text)
+        request_payload = self._build_request_payload(
+            audio,
+            reference_text,
+            user_id,
+            core_type,
+        )
         try:
             response = await self._http_client.post(
-                self._url,
+                f"{self._base_url}/{core_type}",
                 data={
                     "text": json.dumps(
                         request_payload,
@@ -91,11 +98,18 @@ class SpeechSuperClient:
 
         return parse_assessment_response(payload)
 
+    @staticmethod
+    def _select_core_type(reference_text: str) -> str:
+        """Выбирает word- или sentence-API по количеству слов."""
+
+        return SENTENCE_CORE_TYPE if len(reference_text.split()) > 1 else CORE_TYPE
+
     def _build_request_payload(
         self,
         audio: ValidatedAudio,
         reference_text: str,
         user_id: int,
+        core_type: str,
     ) -> dict[str, Any]:
         """Формирует параметр text для multipart-запроса SpeechSuper."""
 
@@ -138,7 +152,7 @@ class SpeechSuperClient:
                     },
                     "request": {
                         "tokenId": token_id,
-                        "coreType": CORE_TYPE,
+                        "coreType": core_type,
                         "refText": reference_text,
                         "phoneme_output": 1,
                         "scale": 100,

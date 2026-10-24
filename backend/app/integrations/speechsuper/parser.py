@@ -9,6 +9,21 @@ from app.integrations.speechsuper.exceptions import (
 )
 
 
+# SpeechSuper uses Latin letters for some Russian vowels (a, o, i, u, y).
+# The app stores Russian phonemes, so map homoglyphs to Cyrillic.
+_PHONEME_REPLACEMENTS = str.maketrans(
+    {
+        "A": "А",
+        "O": "О",
+        "E": "Е",
+        "I": "И",
+        "U": "У",
+        "Y": "Ы",
+        "J": "Й",
+    }
+)
+
+
 def parse_assessment_response(payload: Any) -> SpeechAssessment:
     """Преобразует ответ SpeechSuper в результат нашего приложения."""
 
@@ -85,6 +100,7 @@ def _normalize_phoneme(value: Any) -> str:
         raise SpeechSuperResponseError("Invalid phoneme")
 
     normalized = value.strip().replace("'", "").replace("’", "").upper()
+    normalized = normalized.translate(_PHONEME_REPLACEMENTS)
     if not normalized:
         raise SpeechSuperResponseError("Invalid phoneme")
 

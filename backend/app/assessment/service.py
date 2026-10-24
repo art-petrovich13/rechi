@@ -38,7 +38,10 @@ async def assess_pronunciation(
 
     problematic = [
         phoneme
-        for phoneme, score in assessment.phoneme_scores.items()
+        for phoneme, score in sorted(
+            assessment.phoneme_scores.items(),
+            key=lambda item: (item[1], item[0]),
+        )
         if score < PROBLEMATIC_SCORE_THRESHOLD
     ]
     return AssessmentResult(

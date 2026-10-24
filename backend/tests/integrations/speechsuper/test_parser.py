@@ -33,6 +33,31 @@ class SpeechSuperParserTests(unittest.TestCase):
         self.assertEqual(result.score, 78)
         self.assertEqual(result.phoneme_scores, {"Р": 40, "А": 90})
 
+    def test_normalizes_latin_vowels_to_cyrillic(self) -> None:
+        payload = {
+            "result": {
+                "overall": 80,
+                "words": [
+                    {
+                        "phonemes": [
+                            {"phoneme": "a", "pronunciation": 90},
+                            {"phoneme": "o", "pronunciation": 80},
+                            {"phoneme": "i", "pronunciation": 70},
+                            {"phoneme": "u", "pronunciation": 60},
+                            {"phoneme": "y", "pronunciation": 50},
+                        ]
+                    }
+                ],
+            }
+        }
+
+        result = parse_assessment_response(payload)
+
+        self.assertEqual(
+            result.phoneme_scores,
+            {"А": 90, "О": 80, "И": 70, "У": 60, "Ы": 50},
+        )
+
     def test_rejects_audio_warning(self) -> None:
         payload = {
             "result": {

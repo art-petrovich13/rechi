@@ -42,6 +42,30 @@ class AssessmentServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(attempt.phoneme_scores, {"Р": 49, "Ы": 87})
         db.commit.assert_awaited_once()
 
+    async def test_sorts_problematic_phonemes_by_score(self) -> None:
+        db = MagicMock()
+        db.get = AsyncMock(
+            return_value=Exercise(id=5, text="шуба", phonemes=["Ш", "У"])
+        )
+        db.commit = AsyncMock()
+        speech_super = MagicMock()
+        speech_super.assess_word = AsyncMock(
+            return_value=SpeechAssessment(
+                score=60,
+                phoneme_scores={"У": 58, "Ш": 41},
+            )
+        )
+
+        result = await assess_pronunciation(
+            db,
+            speech_super,
+            user=User(id=3, telegram_id=123),
+            exercise_id=5,
+            audio=_validated_audio(),
+        )
+
+        self.assertEqual(result.problematic, ["Ш", "У"])
+
 
 def _validated_audio() -> ValidatedAudio:
     """Создаёт минимальный объект уже проверенного аудио."""

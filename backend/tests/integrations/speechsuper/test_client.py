@@ -63,6 +63,50 @@ class SpeechSuperClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.score, 81)
         self.assertEqual(result.phoneme_scores, {"Р": 55, "Ы": 88})
 
+    async def test_uses_sentence_core_type_for_phrase(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            self.assertEqual(
+                str(request.url),
+                "https://speech.test/sent.eval.ru",
+            )
+
+            body = await request.aread()
+            self.assertIn(b'"coreType":"sent.eval.ru"', body)
+            self.assertIn("мама мыла раму".encode(), body)
+
+            return httpx.Response(
+                200,
+                json={
+                    "result": {
+                        "overall": 90,
+                        "words": [
+                            {
+                                "phonemes": [
+                                    {"phoneme": "a", "pronunciation": 90},
+                                ]
+                            }
+                        ],
+                    }
+                },
+            )
+
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport) as http_client:
+            client = SpeechSuperClient(
+                http_client,
+                app_key="app-key",
+                secret_key="secret-key",
+                base_url="https://speech.test",
+            )
+            result = await client.assess_word(
+                _validated_audio(),
+                reference_text="мама мыла раму",
+                user_id=42,
+            )
+
+        self.assertEqual(result.score, 90)
+        self.assertEqual(result.phoneme_scores, {"А": 90})
+
     async def test_maps_timeout_to_unavailable_error(self) -> None:
         async def handler(request: httpx.Request) -> httpx.Response:
             raise httpx.ReadTimeout("timeout", request=request)
