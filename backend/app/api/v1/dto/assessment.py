@@ -18,3 +18,8 @@ class AssessmentResponse(ApiSchema):
     phoneme_scores: dict[str, Score]
     problematic: list[str]
     words: list[WordAssessmentResponse]
+    fluency: Score | None = None
+    rhythm: Score | None = None
+    pronunciation: Score | None = None
+    speed: float | None = None
+    duration: float | None = None

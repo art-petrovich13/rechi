@@ -28,6 +28,7 @@ router = APIRouter(tags=["assessment"])
 @router.post(
     "/assess",
     response_model=AssessmentResponse,
+    response_model_exclude_none=True,
     responses={
         status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
@@ -92,4 +93,9 @@ async def assess_audio(
             )
             for word in result.words
         ],
+        fluency=result.fluency,
+        rhythm=result.rhythm,
+        pronunciation=result.pronunciation,
+        speed=result.speed,
+        duration=result.duration,
     )

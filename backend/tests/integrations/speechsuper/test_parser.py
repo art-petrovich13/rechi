@@ -97,6 +97,33 @@ class SpeechSuperParserTests(unittest.TestCase):
             {"А": 90, "О": 80, "И": 70, "У": 60, "Ы": 50},
         )
 
+    def test_parses_sentence_metrics(self) -> None:
+        payload = {
+            "result": {
+                "overall": 82,
+                "fluency": 74.6,
+                "rhythm": 81.2,
+                "pronunciation": 90,
+                "speed": 3.4,
+                "duration": 2.8,
+                "words": [
+                    {
+                        "word": "я",
+                        "scores": {"overall": 90},
+                        "phonemes": [{"phoneme": "я", "pronunciation": 90}],
+                    }
+                ],
+            }
+        }
+
+        result = parse_assessment_response(payload)
+
+        self.assertEqual(result.fluency, 75)
+        self.assertEqual(result.rhythm, 81)
+        self.assertEqual(result.pronunciation, 90)
+        self.assertEqual(result.speed, 3.4)
+        self.assertEqual(result.duration, 2.8)
+
     def test_rejects_audio_warning(self) -> None:
         payload = {
             "result": {

@@ -70,12 +70,17 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
 
 **Headers:** `Authorization: Bearer <token>`
 
-**Query (необязательно):** `category=word|phrase|sentence`
+**Query (необязательно):**
+
+- `category=word|phrase|sentence` — категория;
+- `focus=Р` — только упражнения, в которых есть этот звук;
+- без параметров — любое упражнение.
+
+Категории:
 
 - `word` — одно слово;
 - `phrase` — словосочетание из 2–3 слов;
-- `sentence` — короткое предложение из 4–6 слов;
-- без параметра — любое упражнение.
+- `sentence` — короткое предложение из 4–6 слов.
 
 **Response 200:**
 
@@ -97,6 +102,8 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
   русские буквы; для фраз и предложений это объединение звуков всех слов;
 - `difficulty` — целое 1–3;
 - `category` — `word`, `phrase` или `sentence`;
+- `focus` фильтрует по вхождению звука в `phonemes`; если упражнений нет —
+  404;
 - сервер не повторяет последнее выданное пользователю упражнение подряд,
   если в базе больше одного упражнения.
 
@@ -130,6 +137,11 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
   "score": 78,
   "phoneme_scores": { "Р": 45, "Ы": 88, "Б": 90, "А": 95 },
   "problematic": ["Р"],
+  "fluency": 74,
+  "rhythm": 81,
+  "pronunciation": 90,
+  "speed": 186.0,
+  "duration": 3.0,
   "words": [
     {
       "text": "мама",
@@ -159,6 +171,9 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
   одного слова — `word.eval.ru`; клиент об этом не думает;
 - `problematic` — подмножество ключей с оценкой ниже порога (рекомендуется < 60),
   отсортировано по возрастанию оценки;
+- `fluency`, `rhythm`, `pronunciation` — необязательные целые 0–100
+  (приходят для фраз/предложений `sent.eval.ru`);
+- `speed`, `duration` — необязательные числа; `duration` в секундах;
 - `words` — разбор по словам в порядке произношения; для одного слова массив
   из одного элемента. У каждого слова:
   - `text` — слово из ответа SpeechSuper;
@@ -182,7 +197,52 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
 
 ---
 
-## 4. GET `/api/v1/progress`
+## 4. GET `/api/v1/history`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query:** `limit` — 1–50, по умолчанию 20.
+
+Последние попытки пользователя, сначала новые.
+
+**Response 200:**
+
+```json
+{
+  "attempts": [
+    {
+      "id": 26,
+      "exercise_id": 43,
+      "exercise_text": "я вижу большую рыбу",
+      "category": "sentence",
+      "score": 100,
+      "phoneme_scores": { "Я": 100, "В": 100 },
+      "problematic": [],
+      "words": [
+        {
+          "text": "я",
+          "score": 100,
+          "phoneme_scores": { "Й": 100, "А": 100 }
+        }
+      ],
+      "created_at": "2026-10-24T20:14:00+00:00"
+    }
+  ]
+}
+```
+
+Правила:
+
+- `words` сохраняется в `attempts` и содержит разбор по словам;
+- у старых попыток `words` может быть `[]`;
+- `problematic` считается по агрегированным `phoneme_scores` (< 60);
+- `limit` ограничен 1–50.
+
+**Response 401:** невалидный токен.
+
+---
+
+## 5. GET `/api/v1/progress`
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -224,7 +284,8 @@ JWT выдаётся `POST /api/v1/auth/telegram` после проверки п
 | `AuthResponse { token, user }` | `AuthResponse` |
 | `User { id, first_name }` | `User { id, firstName }` |
 | `Exercise { id, text, phonemes, difficulty, category }` | `Exercise` |
-| `Assessment { score, phoneme_scores, problematic, words }` | `Assessment { score, phonemeScores, problematic, words }` |
+| `Assessment { score, phoneme_scores, problematic, words, fluency, rhythm, pronunciation }` | `Assessment` |
+| `HistoryResponse { attempts }` | `HistoryResponse` |
 | `Progress { attempts_count, weak_phonemes }` | `Progress { attemptsCount, weakPhonemes }` |
 | `WeakPhoneme { phoneme, avg_score }` | `WeakPhoneme { phoneme, avgScore }` |
 

@@ -47,6 +47,11 @@ def parse_assessment_response(
         raise SpeechSuperAudioRejectedError("; ".join(messages) or "Audio was rejected")
 
     overall_score = _parse_score(result.get("overall"))
+    fluency = _parse_optional_score(result.get("fluency"))
+    rhythm = _parse_optional_score(result.get("rhythm"))
+    pronunciation = _parse_optional_score(result.get("pronunciation"))
+    speed = _parse_optional_float(result.get("speed"))
+    duration = _parse_optional_float(result.get("duration"))
     raw_words = result.get("words")
     if not isinstance(raw_words, list) or not raw_words:
         raise SpeechSuperResponseError("SpeechSuper response has no words")
@@ -83,6 +88,11 @@ def parse_assessment_response(
         score=overall_score,
         phoneme_scores=phoneme_scores,
         words=tuple(words),
+        fluency=fluency,
+        rhythm=rhythm,
+        pronunciation=pronunciation,
+        speed=speed,
+        duration=duration,
     )
 
 
@@ -131,6 +141,30 @@ def _word_score(word: dict[str, Any], fallback: int) -> int:
             if key in scores:
                 return _parse_score(scores[key])
     return fallback
+
+
+def _parse_optional_score(value: Any) -> int | None:
+    """Парсит необязательный балл; отсутствие поля допустимо."""
+
+    if value is None:
+        return None
+    return _parse_score(value)
+
+
+def _parse_optional_float(value: Any) -> float | None:
+    """Парсит необязательное числовое поле (скорость, длительность)."""
+
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise SpeechSuperResponseError("Invalid numeric value")
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as error:
+        raise SpeechSuperResponseError("Invalid numeric value") from error
+    if number < 0:
+        raise SpeechSuperResponseError("Numeric value must be non-negative")
+    return number
 
 
 def _parse_score(value: Any) -> int:

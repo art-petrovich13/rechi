@@ -19,3 +19,8 @@ class SpeechAssessment:
     score: int
     phoneme_scores: dict[str, int]
     words: tuple[WordAssessment, ...] = field(default_factory=tuple)
+    fluency: int | None = None
+    rhythm: int | None = None
+    pronunciation: int | None = None
+    speed: float | None = None
+    duration: float | None = None

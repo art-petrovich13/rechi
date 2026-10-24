@@ -25,13 +25,14 @@ router = APIRouter(prefix="/exercises", tags=["exercises"])
 )
 async def get_next_exercise(
     category: Annotated[ExerciseCategory | None, Query()] = None,
+    focus: Annotated[str | None, Query(min_length=1, max_length=2)] = None,
     db: AsyncSession = Depends(get_db),
     _current_user: User = Depends(get_current_user),
 ) -> ExerciseResponse:
-    """Возвращает случайное упражнение авторизованному пользователю."""
+    """Возвращает упражнение авторизованному пользователю."""
 
     try:
-        exercise = await get_random_exercise(db, category)
+        exercise = await get_random_exercise(db, category, focus)
     except ExerciseNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

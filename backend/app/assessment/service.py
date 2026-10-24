@@ -32,21 +32,41 @@ async def assess_pronunciation(
         exercise_id=exercise.id,
         score=assessment.score,
         phoneme_scores=assessment.phoneme_scores,
+        words=[
+            {
+                "text": word.text,
+                "score": word.score,
+                "phoneme_scores": word.phoneme_scores,
+            }
+            for word in assessment.words
+        ],
     )
     db.add(attempt)
     await db.commit()
 
-    problematic = [
-        phoneme
-        for phoneme, score in sorted(
-            assessment.phoneme_scores.items(),
-            key=lambda item: (item[1], item[0]),
-        )
-        if score < PROBLEMATIC_SCORE_THRESHOLD
-    ]
+    problematic = problematic_phonemes(assessment.phoneme_scores)
     return AssessmentResult(
         score=assessment.score,
         phoneme_scores=assessment.phoneme_scores,
         problematic=problematic,
         words=assessment.words,
+        fluency=assessment.fluency,
+        rhythm=assessment.rhythm,
+        pronunciation=assessment.pronunciation,
+        speed=assessment.speed,
+        duration=assessment.duration,
     )
+
+
+
+def problematic_phonemes(phoneme_scores: dict[str, int]) -> list[str]:
+    """Возвращает слабые звуки, отсортированные по возрастанию балла."""
+
+    return [
+        phoneme
+        for phoneme, score in sorted(
+            phoneme_scores.items(),
+            key=lambda item: (item[1], item[0]),
+        )
+        if score < PROBLEMATIC_SCORE_THRESHOLD
+    ]
