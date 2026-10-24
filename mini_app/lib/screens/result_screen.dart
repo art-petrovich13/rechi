@@ -61,6 +61,10 @@ class ResultScreen extends StatelessWidget {
                     color: AppColors.ink,
                   ),
                 ),
+                if (assessment.hasMetrics) ...<Widget>[
+                  const SizedBox(height: 22),
+                  _MetricsCard(assessment: assessment),
+                ],
                 const SizedBox(height: 24),
                 if (assessment.words.length > 1)
                   _WordsCard(words: assessment.words)
@@ -80,6 +84,135 @@ class ResultScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MetricsCard extends StatelessWidget {
+  const _MetricsCard({required this.assessment});
+
+  final Assessment assessment;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> rows = <Widget>[];
+    void addMetric(String label, int? value) {
+      if (value == null) {
+        return;
+      }
+      if (rows.isNotEmpty) {
+        rows.add(const SizedBox(height: 12));
+      }
+      rows.add(_MetricRow(label: label, value: value));
+    }
+
+    addMetric('Беглость', assessment.fluency);
+    addMetric('Ритм', assessment.rhythm);
+    addMetric('Произношение', assessment.pronunciation);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.outline),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Row(
+            children: <Widget>[
+              Icon(
+                Icons.monitor_heart_outlined,
+                size: 22,
+                color: AppColors.primaryDark,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Темп и ритм',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Как ровно и уверенно прозвучала фраза.',
+            style: TextStyle(fontSize: 13, color: AppColors.muted),
+          ),
+          const SizedBox(height: 16),
+          ...rows,
+          if (assessment.duration != null &&
+              assessment.duration! > 0) ...<Widget>[
+            const SizedBox(height: 12),
+            Text(
+              'Длительность: ${assessment.duration!.toStringAsFixed(1)} с',
+              style: const TextStyle(fontSize: 13, color: AppColors.muted),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricRow extends StatelessWidget {
+  const _MetricRow({required this.label, required this.value});
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color = ScoreStyle.color(value);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+            ),
+            Text(
+              '$value',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: value / 100,
+            minHeight: 8,
+            backgroundColor: ScoreStyle.softColor(value),
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

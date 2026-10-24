@@ -6,6 +6,7 @@ import 'package:mini_app/core/constants.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/history.dart';
 import 'package:mini_app/models/progress.dart';
 import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/models/user.dart';
@@ -201,13 +202,21 @@ class MockBackend {
   }
 
   /// Случайное упражнение категории, не повторяющее предыдущее.
-  Future<Exercise> nextExercise({TrainingCategory? category}) async {
+  Future<Exercise> nextExercise({
+    TrainingCategory? category,
+    String? focus,
+  }) async {
     await Future<void>.delayed(nextDelay);
-    final List<Exercise> pool = category == null
-        ? _exercises
-        : _exercises
-              .where((Exercise exercise) => exercise.category == category)
-              .toList(growable: false);
+    final String? normalizedFocus = focus?.trim().toUpperCase();
+    final List<Exercise> pool = _exercises
+        .where(
+          (Exercise exercise) =>
+              (category == null || exercise.category == category) &&
+              (normalizedFocus == null ||
+                  normalizedFocus.isEmpty ||
+                  exercise.phonemes.contains(normalizedFocus)),
+        )
+        .toList(growable: false);
     if (pool.isEmpty) {
       throw const ApiException(
         statusCode: 404,
@@ -294,14 +303,49 @@ class MockBackend {
               phonemeScores: scores,
             ),
           ];
+    final bool hasMetrics = exercise.isPhrase;
+    final int metricBase = (overall + 6).clamp(0, 100);
     final Assessment assessment = Assessment(
       score: overall,
       phonemeScores: scores,
       problematic: problematic,
       words: words,
+      fluency: hasMetrics ? metricBase : null,
+      rhythm: hasMetrics ? (overall + 2).clamp(0, 100) : null,
+      pronunciation: hasMetrics ? overall : null,
+      duration: hasMetrics ? 2.8 : null,
     );
-    _attempts.add(_MockAttempt(assessment: assessment));
+    _attempts.add(
+      _MockAttempt(
+        exercise: exercise,
+        assessment: assessment,
+        createdAt: DateTime.now().toUtc(),
+      ),
+    );
     return assessment;
+  }
+
+  /// История попыток текущей демо-сессии.
+  Future<HistoryResponse> history({int limit = 20}) async {
+    await Future<void>.delayed(progressDelay);
+    final List<HistoryEntry> entries = <HistoryEntry>[];
+    for (var index = 0; index < _attempts.length && index < limit; index++) {
+      final _MockAttempt attempt = _attempts[_attempts.length - 1 - index];
+      entries.add(
+        HistoryEntry(
+          id: _attempts.length - index,
+          exerciseId: attempt.exercise.id,
+          exerciseText: attempt.exercise.text,
+          category: attempt.exercise.category,
+          score: attempt.assessment.score,
+          phonemeScores: attempt.assessment.phonemeScores,
+          problematic: attempt.assessment.problematic,
+          words: attempt.assessment.words,
+          createdAt: attempt.createdAt,
+        ),
+      );
+    }
+    return HistoryResponse(attempts: entries);
   }
 
   List<WordAssessment> _wordAssessments(
@@ -384,7 +428,13 @@ class MockBackend {
 }
 
 class _MockAttempt {
-  const _MockAttempt({required this.assessment});
+  const _MockAttempt({
+    required this.exercise,
+    required this.assessment,
+    required this.createdAt,
+  });
 
+  final Exercise exercise;
   final Assessment assessment;
+  final DateTime createdAt;
 }

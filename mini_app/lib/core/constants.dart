@@ -28,6 +28,7 @@ const String epAuthTelegram = '/api/v1/auth/telegram';
 const String epExercisesNext = '/api/v1/exercises/next';
 const String epAssess = '/api/v1/assess';
 const String epProgress = '/api/v1/progress';
+const String epHistory = '/api/v1/history';
 
 /// Таймауты запросов.
 const Duration apiTimeout = Duration(seconds: 20);

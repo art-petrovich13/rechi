@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/history.dart';
 import 'package:mini_app/models/progress.dart';
 import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/models/user.dart';
@@ -143,6 +144,26 @@ void main() {
       expect(assessment.words.last.phonemeEntries.length, 2);
     });
 
+    test('читает метрики беглости и ритма', () {
+      final Assessment assessment = Assessment.fromJson(<String, Object?>{
+        'score': 82,
+        'phoneme_scores': <String, Object?>{'Я': 90},
+        'problematic': <String>[],
+        'fluency': 74.6,
+        'rhythm': '81',
+        'pronunciation': 90,
+        'speed': 186,
+        'duration': 3.0,
+      });
+
+      expect(assessment.fluency, 75);
+      expect(assessment.rhythm, 81);
+      expect(assessment.pronunciation, 90);
+      expect(assessment.speed, 186);
+      expect(assessment.duration, 3.0);
+      expect(assessment.hasMetrics, isTrue);
+    });
+
     test('ограничивает оценку диапазоном 0–100', () {
       final Assessment assessment = Assessment.fromJson(<String, Object?>{
         'score': 140,
@@ -152,6 +173,33 @@ void main() {
 
       expect(assessment.score, 100);
       expect(assessment.phonemeScores['Р'], -10);
+    });
+  });
+
+  group('HistoryEntry.fromJson', () {
+    test('читает попытку с разбором по словам', () {
+      final HistoryEntry entry = HistoryEntry.fromJson(<String, Object?>{
+        'id': 7,
+        'exercise_id': 43,
+        'exercise_text': 'я вижу большую рыбу',
+        'category': 'sentence',
+        'score': 82,
+        'phoneme_scores': <String, Object?>{'Я': 90, 'В': 80},
+        'problematic': <String>['В'],
+        'words': <Map<String, Object?>>[
+          <String, Object?>{
+            'text': 'я',
+            'score': 90,
+            'phoneme_scores': <String, Object?>{'Я': 90},
+          },
+        ],
+        'created_at': '2026-10-24T12:00:00+00:00',
+      });
+
+      expect(entry.exerciseText, 'я вижу большую рыбу');
+      expect(entry.category, TrainingCategory.sentence);
+      expect(entry.words.single.text, 'я');
+      expect(entry.createdAt.isUtc, isTrue);
     });
   });
 

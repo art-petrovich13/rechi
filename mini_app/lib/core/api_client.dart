@@ -10,6 +10,7 @@ import 'package:mini_app/core/mock_backend.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/history.dart';
 import 'package:mini_app/models/progress.dart';
 import 'package:mini_app/models/training_category.dart';
 
@@ -79,18 +80,21 @@ class ApiClient {
   }
 
   /// `GET /api/exercises/next` с необязательной категорией.
-  Future<Exercise> nextExercise({TrainingCategory? category}) async {
+  Future<Exercise> nextExercise({
+    TrainingCategory? category,
+    String? focus,
+  }) async {
     final MockBackend? mock = _mock;
     if (mock != null) {
-      return mock.nextExercise(category: category);
+      return mock.nextExercise(category: category, focus: focus);
     }
 
     final Uri base = _uri(epExercisesNext);
-    final Uri uri = category == null
-        ? base
-        : base.replace(
-            queryParameters: <String, String>{'category': category.apiValue},
-          );
+    final Map<String, String> query = <String, String>{
+      if (category != null) 'category': category.apiValue,
+      if (focus != null && focus.isNotEmpty) 'focus': focus,
+    };
+    final Uri uri = query.isEmpty ? base : base.replace(queryParameters: query);
     final http.Response response = await _send(
       () => _http.get(uri, headers: _authHeaders),
       timeout: apiTimeout,
@@ -127,6 +131,23 @@ class ApiClient {
       return http.Response.fromStream(streamed);
     }, timeout: assessTimeout);
     return Assessment.fromJson(_decodeMap(response));
+  }
+
+  /// `GET /api/v1/history` — последние попытки.
+  Future<HistoryResponse> history({int limit = 20}) async {
+    final MockBackend? mock = _mock;
+    if (mock != null) {
+      return mock.history(limit: limit);
+    }
+
+    final Uri uri = _uri(epHistory)
+        .replace(queryParameters: <String, String>{'limit': '$limit'});
+    final http.Response response = await _send(
+      () => _http.get(uri, headers: _authHeaders),
+      timeout: apiTimeout,
+      retries: 1,
+    );
+    return HistoryResponse.fromJson(_decodeMap(response));
   }
 
   /// `GET /api/progress`.

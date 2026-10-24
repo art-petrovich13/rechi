@@ -53,3 +53,21 @@ Map<String, int> readIntMap(Object? value) {
   }
   return result;
 }
+
+int? readOptionalInt(Object? value) {
+  return switch (value) {
+    null => null,
+    final num number => number.round(),
+    final String text => int.tryParse(text),
+    _ => null,
+  };
+}
+
+double? readOptionalDouble(Object? value) {
+  return switch (value) {
+    null => null,
+    final num number => number.toDouble(),
+    final String text => double.tryParse(text),
+    _ => null,
+  };
+}

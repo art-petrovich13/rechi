@@ -35,6 +35,11 @@ class Assessment {
     required this.phonemeScores,
     required this.problematic,
     this.words = const <WordAssessment>[],
+    this.fluency,
+    this.rhythm,
+    this.pronunciation,
+    this.speed,
+    this.duration,
   });
 
   factory Assessment.fromJson(Map<String, Object?> json) {
@@ -57,6 +62,11 @@ class Assessment {
       phonemeScores: scores,
       problematic: problematic,
       words: words,
+      fluency: _clampScore(readOptionalInt(json['fluency'])),
+      rhythm: _clampScore(readOptionalInt(json['rhythm'])),
+      pronunciation: _clampScore(readOptionalInt(json['pronunciation'])),
+      speed: readOptionalDouble(json['speed']),
+      duration: readOptionalDouble(json['duration']),
     );
   }
 
@@ -64,6 +74,15 @@ class Assessment {
   final Map<String, int> phonemeScores;
   final List<String> problematic;
   final List<WordAssessment> words;
+  final int? fluency;
+  final int? rhythm;
+  final int? pronunciation;
+  final double? speed;
+  final double? duration;
+
+  /// Есть ли метрики беглости/ритма (sent.eval.ru).
+  bool get hasMetrics =>
+      fluency != null || rhythm != null || pronunciation != null;
 
   /// Звуки в порядке упражнения, затем остальные из ответа.
   List<MapEntry<String, int>> phonemeEntries(List<String> order) {
@@ -84,4 +103,23 @@ class Assessment {
   }
 
   bool isProblematic(String phoneme) => problematic.contains(phoneme);
+}
+
+int? _clampScore(int? value) {
+  if (value == null) {
+    return null;
+  }
+  return value.clamp(0, 100);
+}
+
+List<WordAssessment> readWordAssessments(Object? rawWords) {
+  final List<WordAssessment> words = <WordAssessment>[];
+  if (rawWords is List) {
+    for (final Object? item in rawWords) {
+      if (item is Map) {
+        words.add(WordAssessment.fromJson(item.cast<String, Object?>()));
+      }
+    }
+  }
+  return words;
 }

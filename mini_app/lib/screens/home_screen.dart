@@ -5,6 +5,7 @@ import 'package:mini_app/core/progress_service.dart';
 import 'package:mini_app/models/progress.dart';
 import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/screens/exercise_screen.dart';
+import 'package:mini_app/screens/history_screen.dart';
 import 'package:mini_app/theme/app_theme.dart';
 import 'package:mini_app/widgets/app_logo.dart';
 import 'package:mini_app/widgets/demo_badge.dart';
@@ -79,6 +80,27 @@ class _HomeScreenState extends State<HomeScreen> {
     return context.read<ProgressService>().load(silent: true);
   }
 
+  Future<void> _startFocus(String phoneme) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) =>
+            ExerciseScreen(category: TrainingCategory.word, focus: phoneme),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await context.read<ProgressService>().load(silent: true);
+  }
+
+  Future<void> _openHistory() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => const HistoryScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final AuthService auth = context.watch<AuthService>();
@@ -101,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: <Widget>[
                   _HomeHeader(
                     isDemo: auth.isDemo,
+                    onHistory: _openHistory,
                     onHelp: () => showHowItWorksSheet(context),
                   ),
                   const SizedBox(height: 28),
@@ -122,7 +145,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     const _DemoBanner(),
                   ],
                   const SizedBox(height: 22),
-                  _ProgressCard(progress: progress, onRetry: progress.load),
+                  _ProgressCard(
+                    progress: progress,
+                    onRetry: progress.load,
+                    onFocus: _startFocus,
+                  ),
                   const SizedBox(height: 22),
                   _CategoryPicker(
                     selected: _selectedCategory,
@@ -219,13 +246,19 @@ class _CategoryPicker extends StatelessWidget {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.isDemo, required this.onHelp});
+  const _HomeHeader({
+    required this.isDemo,
+    required this.onHistory,
+    required this.onHelp,
+  });
 
   final bool isDemo;
+  final VoidCallback onHistory;
   final VoidCallback onHelp;
 
   @override
   Widget build(BuildContext context) {
+    final bool narrow = MediaQuery.sizeOf(context).width < 360;
     return Row(
       children: <Widget>[
         const AppLogo(size: 46),
@@ -255,7 +288,15 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (isDemo) ...<Widget>[const DemoBadge(), const SizedBox(width: 4)],
+        if (isDemo && !narrow) ...<Widget>[
+          const DemoBadge(),
+          const SizedBox(width: 4),
+        ],
+        IconButton(
+          onPressed: onHistory,
+          tooltip: 'История',
+          icon: const Icon(Icons.history_rounded),
+        ),
         IconButton(
           onPressed: onHelp,
           tooltip: 'Как заниматься',
@@ -300,10 +341,15 @@ class _DemoBanner extends StatelessWidget {
 }
 
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.progress, required this.onRetry});
+  const _ProgressCard({
+    required this.progress,
+    required this.onRetry,
+    required this.onFocus,
+  });
 
   final ProgressService progress;
   final VoidCallback onRetry;
+  final ValueChanged<String> onFocus;
 
   @override
   Widget build(BuildContext context) {
@@ -371,7 +417,7 @@ class _ProgressCard extends StatelessWidget {
               onRetry: onRetry,
             )
           else ...<Widget>[
-            _ProgressContent(data: data),
+            _ProgressContent(data: data, onFocus: onFocus),
             if (progress.errorMessage != null) ...<Widget>[
               const SizedBox(height: 14),
               ErrorView(
@@ -388,9 +434,10 @@ class _ProgressCard extends StatelessWidget {
 }
 
 class _ProgressContent extends StatelessWidget {
-  const _ProgressContent({required this.data});
+  const _ProgressContent({required this.data, required this.onFocus});
 
   final Progress data;
+  final ValueChanged<String> onFocus;
 
   @override
   Widget build(BuildContext context) {
@@ -478,10 +525,18 @@ class _ProgressContent extends StatelessWidget {
                     phoneme: item.phoneme,
                     score: item.avgScore,
                     dense: true,
+                    onTap: () => onFocus(item.phoneme),
                   ),
                 )
                 .toList(growable: false),
           ),
+        if (data.weakPhonemes.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 8),
+          const Text(
+            'Нажмите на звук, чтобы потренировать его отдельно.',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+        ],
       ],
     );
   }

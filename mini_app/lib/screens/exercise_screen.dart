@@ -23,9 +23,10 @@ import 'package:provider/provider.dart';
 
 /// Экран упражнения: слово или фраза, запись WAV и отправка на проверку.
 class ExerciseScreen extends StatefulWidget {
-  const ExerciseScreen({super.key, required this.category});
+  const ExerciseScreen({super.key, required this.category, this.focus});
 
   final TrainingCategory category;
+  final String? focus;
 
   @override
   State<ExerciseScreen> createState() => _ExerciseScreenState();
@@ -104,6 +105,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     try {
       final Exercise exercise = await _api.nextExercise(
         category: widget.category,
+        focus: widget.focus,
       );
       if (!mounted) {
         return;
@@ -466,7 +468,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
     if (_error != null) {
       if (_notFound) {
-        return _NoExercises(onBack: () => Navigator.of(context).pop());
+        return _NoExercises(
+          onBack: () => Navigator.of(context).pop(),
+          focus: widget.focus,
+        );
       }
       return Padding(
         padding: AppSpacing.pagePadding,
@@ -490,6 +495,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
       children: <Widget>[
         _DifficultyBadge(difficulty: exercise.difficulty),
+        if (widget.focus != null) ...<Widget>[
+          const SizedBox(height: 6),
+          _FocusBadge(phoneme: widget.focus!),
+        ],
         SizedBox(height: compact ? 6 : 12),
         Center(
           child: WordIllustration(
@@ -913,10 +922,39 @@ class _InlineError extends StatelessWidget {
   }
 }
 
+class _FocusBadge extends StatelessWidget {
+  const _FocusBadge({required this.phoneme});
+
+  final String phoneme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.primarySoft,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+        ),
+        child: Text(
+          'Тренируем звук $phoneme',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primaryDark,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NoExercises extends StatelessWidget {
-  const _NoExercises({required this.onBack});
+  const _NoExercises({required this.onBack, this.focus});
 
   final VoidCallback onBack;
+  final String? focus;
 
   @override
   Widget build(BuildContext context) {
@@ -942,20 +980,25 @@ class _NoExercises extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'На сегодня всё!',
-                style: TextStyle(
+              Text(
+                focus == null
+                    ? 'На сегодня всё!'
+                    : 'Нет упражнений со звуком $focus',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   color: AppColors.ink,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Все упражнения пройдены. Возвращайтесь завтра — '
-                'или начните заново с главного экрана.',
+              Text(
+                focus == null
+                    ? 'Все упражнения пройдены. Возвращайтесь завтра — '
+                          'или начните заново с главного экрана.'
+                    : 'Попробуйте другой звук или вернитесь на главный экран.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   height: 1.45,
                   color: AppColors.muted,
