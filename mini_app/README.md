@@ -10,6 +10,8 @@ Telegram Mini App для тренировки речи: восстановлен
 
 > **Границы:** клиент — `mini_app/**`, backend — `backend/**`;
 > изменения backend согласуются с владельцем.
+>
+> Полный запуск на чистом Windows: [WINDOWS_SETUP.md](../WINDOWS_SETUP.md).
 
 ---
 
