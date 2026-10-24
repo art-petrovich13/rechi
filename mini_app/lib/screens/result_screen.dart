@@ -28,7 +28,7 @@ class ResultScreen extends StatelessWidget {
       exercise.phonemes,
     );
     final List<String> problematic = assessment.problematic;
-    final String kind = exercise.isPhrase ? 'Фраза' : 'Слово';
+    final String kind = exercise.kindTitle;
 
     return PageScaffold(
       title: 'Результат',
@@ -62,7 +62,10 @@ class ResultScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                _SoundCard(entries: entries, assessment: assessment),
+                if (assessment.words.length > 1)
+                  _WordsCard(words: assessment.words)
+                else
+                  _SoundCard(entries: entries, assessment: assessment),
                 const SizedBox(height: 16),
                 if (problematic.isEmpty)
                   const _SuccessCard()
@@ -75,6 +78,143 @@ class ResultScreen extends StatelessWidget {
             onRetry: () => Navigator.of(context).pop(ResultAction.retry),
             onNext: () => Navigator.of(context).pop(ResultAction.next),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WordsCard extends StatelessWidget {
+  const _WordsCard({required this.words});
+
+  final List<WordAssessment> words;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.outline),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: AppColors.shadow,
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Row(
+            children: <Widget>[
+              Icon(
+                Icons.record_voice_over_rounded,
+                size: 22,
+                color: AppColors.primaryDark,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'По словам',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Проверили звуки в каждом слове. Красная рамка — звук стоит '
+            'потренировать.',
+            style: TextStyle(fontSize: 13, height: 1.4, color: AppColors.muted),
+          ),
+          const SizedBox(height: 14),
+          for (var index = 0; index < words.length; index++) ...<Widget>[
+            _WordResultTile(word: words[index]),
+            if (index < words.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WordResultTile extends StatelessWidget {
+  const _WordResultTile({required this.word});
+
+  final WordAssessment word;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundTop,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  word.text,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: ScoreStyle.softColor(word.score),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${word.score}',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: ScoreStyle.color(word.score),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (word.phonemeEntries.isEmpty)
+            const Text(
+              'Сервис не вернул звуки для этого слова.',
+              style: TextStyle(fontSize: 13, color: AppColors.muted),
+            )
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: word.phonemeEntries
+                  .map(
+                    (MapEntry<String, int> entry) => PhonemeChip(
+                      phoneme: entry.key,
+                      score: entry.value,
+                      isProblematic: word.isProblematic(entry.key),
+                      dense: true,
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
         ],
       ),
     );

@@ -8,6 +8,7 @@ import 'package:mini_app/core/audio_recorder.dart';
 import 'package:mini_app/core/constants.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/screens/result_screen.dart';
 import 'package:mini_app/theme/app_theme.dart';
 import 'package:mini_app/widgets/error_view.dart';
@@ -22,7 +23,9 @@ import 'package:provider/provider.dart';
 
 /// Экран упражнения: слово или фраза, запись WAV и отправка на проверку.
 class ExerciseScreen extends StatefulWidget {
-  const ExerciseScreen({super.key});
+  const ExerciseScreen({super.key, required this.category});
+
+  final TrainingCategory category;
 
   @override
   State<ExerciseScreen> createState() => _ExerciseScreenState();
@@ -99,7 +102,9 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     });
 
     try {
-      final Exercise exercise = await _api.nextExercise();
+      final Exercise exercise = await _api.nextExercise(
+        category: widget.category,
+      );
       if (!mounted) {
         return;
       }
@@ -246,7 +251,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       _scrollToBottom();
       unawaited(HapticFeedback.mediumImpact());
       if (autoStopped) {
-        _showSnack('Запись остановлена на 10 секундах.');
+        _showSnack('Запись остановлена на $maxRecordingSeconds секундах.');
       }
     } on RecordingException catch (error) {
       if (!mounted) {
@@ -418,7 +423,9 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       actions: <Widget>[
         IconButton(
           onPressed: _loading || _sending ? null : _loadNext,
-          tooltip: _exercise?.isPhrase == true
+          tooltip: _exercise?.category == TrainingCategory.sentence
+              ? 'Другое предложение'
+              : _exercise?.category == TrainingCategory.phrase
               ? 'Другая фраза'
               : 'Другое слово',
           icon: const Icon(Icons.refresh_rounded),
@@ -519,16 +526,24 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 ),
         ),
         SizedBox(height: compact ? 10 : 14),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: exercise.phonemes
-              .map(
-                (String phoneme) => PhonemeChip(phoneme: phoneme, dense: true),
-              )
-              .toList(growable: false),
-        ),
+        if (exercise.isPhrase)
+          const Text(
+            'Проверим звуки в каждом слове',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AppColors.muted),
+          )
+        else
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: exercise.phonemes
+                .map(
+                  (String phoneme) =>
+                      PhonemeChip(phoneme: phoneme, dense: true),
+                )
+                .toList(growable: false),
+          ),
         SizedBox(height: compact ? 8 : 22),
         _buildRecorder(context),
         const SizedBox(height: 18),
@@ -566,7 +581,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Widget _buildRecorder(BuildContext context) {
-    final bool isPhrase = _exercise?.isPhrase ?? false;
+    final TrainingCategory category = _exercise?.category ?? widget.category;
+    final String kind = switch (category) {
+      TrainingCategory.sentence => 'предложение',
+      TrainingCategory.phrase => 'фразу',
+      TrainingCategory.word => 'слово',
+    };
     if (_micDenied) {
       return _MicDenied(
         canUseDemo: _api.isMock,
@@ -653,15 +673,13 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           ),
         ] else ...<Widget>[
           Text(
-            isPhrase
-                ? 'Нажмите на микрофон и произнесите фразу'
-                : 'Нажмите на микрофон и произнесите слово',
+            'Нажмите на микрофон и произнесите $kind',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 15, color: AppColors.muted),
           ),
           const SizedBox(height: 4),
           const Text(
-            'До 10 секунд',
+            'До 20 секунд',
             style: TextStyle(fontSize: 13, color: AppColors.muted),
           ),
         ],

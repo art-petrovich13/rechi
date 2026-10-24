@@ -42,9 +42,9 @@ class _HowItWorksSheet extends StatelessWidget {
             const SizedBox(height: 20),
             const _Step(
               icon: Icons.visibility_rounded,
-              title: '1. Посмотрите на слово или фразу',
+              title: '1. Посмотрите на задание',
               text:
-                  'Прочитайте слово или фразу и их звуки. Можно повторять целиком '
+                  'Прочитайте слово, фразу или предложение и их звуки. Можно повторять целиком '
                   'или по слогам — как удобнее.',
             ),
             const _Step(
@@ -52,7 +52,7 @@ class _HowItWorksSheet extends StatelessWidget {
               title: '2. Запишите голос',
               text:
                   'Нажмите на микрофон и говорите в обычном темпе. '
-                  'Запись длится до 10 секунд.',
+                  'Запись длится до 20 секунд.',
             ),
             const _Step(
               icon: Icons.insights_rounded,

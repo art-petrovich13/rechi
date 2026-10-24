@@ -3,6 +3,7 @@ import 'package:mini_app/core/auth_service.dart';
 import 'package:mini_app/core/constants.dart';
 import 'package:mini_app/core/progress_service.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/screens/exercise_screen.dart';
 import 'package:mini_app/theme/app_theme.dart';
 import 'package:mini_app/widgets/app_logo.dart';
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const String _introKey = 'intro_seen';
 
   bool _introChecked = false;
+  TrainingCategory _selectedCategory = TrainingCategory.word;
 
   @override
   void initState() {
@@ -61,9 +63,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _startTraining() async {
+    final TrainingCategory category = _selectedCategory;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) => const ExerciseScreen(),
+        builder: (BuildContext context) => ExerciseScreen(category: category),
       ),
     );
     if (!mounted) {
@@ -121,6 +124,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 22),
                   _ProgressCard(progress: progress, onRetry: progress.load),
                   const SizedBox(height: 22),
+                  _CategoryPicker(
+                    selected: _selectedCategory,
+                    onSelected: (TrainingCategory category) {
+                      setState(() => _selectedCategory = category);
+                    },
+                  ),
+                  const SizedBox(height: 14),
                   PrimaryButton(
                     label: 'Начать тренировку',
                     icon: Icons.mic_rounded,
@@ -141,6 +151,69 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CategoryPicker extends StatelessWidget {
+  const _CategoryPicker({required this.selected, required this.onSelected});
+
+  final TrainingCategory selected;
+  final ValueChanged<TrainingCategory> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text(
+          'Что тренируем?',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: TrainingCategory.values
+              .map(
+                (TrainingCategory category) => ChoiceChip(
+                  label: Text(category.label),
+                  selected: selected == category,
+                  onSelected: (_) => onSelected(category),
+                  showCheckmark: false,
+                  selectedColor: AppColors.primarySoft,
+                  backgroundColor: AppColors.surface,
+                  side: BorderSide(
+                    color: selected == category
+                        ? AppColors.primaryDark
+                        : AppColors.outline,
+                    width: selected == category ? 1.5 : 1,
+                  ),
+                  labelStyle: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: selected == category
+                        ? AppColors.primaryDark
+                        : AppColors.ink,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+              )
+              .toList(growable: false),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          selected.description,
+          style: const TextStyle(fontSize: 13, color: AppColors.muted),
+        ),
+      ],
     );
   }
 }

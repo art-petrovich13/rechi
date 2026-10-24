@@ -10,6 +10,7 @@ import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 
 http.Response _jsonResponse(Object body, {int status = 200}) {
   return http.Response.bytes(
@@ -86,6 +87,32 @@ void main() {
   });
 
   group('ApiClient.nextExercise', () {
+    test('передаёт категорию в query', () async {
+      final MockClient client = MockClient((http.Request request) async {
+        expect(request.url.queryParameters['category'], 'sentence');
+
+        return _jsonResponse(<String, Object?>{
+          'id': 43,
+          'text': 'я вижу большую рыбу',
+          'phonemes': <String>['Я', 'В', 'И'],
+          'difficulty': 2,
+          'category': 'sentence',
+        });
+      });
+
+      final ApiClient api = ApiClient(
+        baseUrl: 'https://api.example.com',
+        httpClient: client,
+      )..setToken('jwt');
+
+      final Exercise exercise = await api.nextExercise(
+        category: TrainingCategory.sentence,
+      );
+
+      expect(exercise.category, TrainingCategory.sentence);
+      expect(exercise.isPhrase, isTrue);
+    });
+
     test('ставит Bearer-токен и читает упражнение', () async {
       final MockClient client = MockClient((http.Request request) async {
         expect(request.headers['Authorization'], 'Bearer jwt');

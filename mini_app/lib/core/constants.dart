@@ -31,13 +31,13 @@ const String epProgress = '/api/v1/progress';
 
 /// Таймауты запросов.
 const Duration apiTimeout = Duration(seconds: 20);
-const Duration assessTimeout = Duration(seconds: 45);
+const Duration assessTimeout = Duration(seconds: 60);
 const Duration retryDelay = Duration(milliseconds: 350);
 
 /// Параметры записи.
 const int recordingSampleRate = 16000;
 const int recordingChannels = 1;
-const int maxRecordingSeconds = 10;
+const int maxRecordingSeconds = 20;
 const Duration minRecordingDuration = Duration(milliseconds: 600);
 const String recordingFileName = 'recording.wav';
 const String recordingMimeType = 'audio/wav';

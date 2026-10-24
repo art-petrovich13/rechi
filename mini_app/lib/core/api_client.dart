@@ -11,6 +11,7 @@ import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 
 /// Единый HTTP-клиент приложения.
 ///
@@ -77,15 +78,21 @@ class ApiClient {
     return AuthResponse.fromJson(_decodeMap(response));
   }
 
-  /// `GET /api/exercises/next`.
-  Future<Exercise> nextExercise() async {
+  /// `GET /api/exercises/next` с необязательной категорией.
+  Future<Exercise> nextExercise({TrainingCategory? category}) async {
     final MockBackend? mock = _mock;
     if (mock != null) {
-      return mock.nextExercise();
+      return mock.nextExercise(category: category);
     }
 
+    final Uri base = _uri(epExercisesNext);
+    final Uri uri = category == null
+        ? base
+        : base.replace(
+            queryParameters: <String, String>{'category': category.apiValue},
+          );
     final http.Response response = await _send(
-      () => _http.get(_uri(epExercisesNext), headers: _authHeaders),
+      () => _http.get(uri, headers: _authHeaders),
       timeout: apiTimeout,
       retries: 1,
     );

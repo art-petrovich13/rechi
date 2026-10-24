@@ -3,6 +3,7 @@ import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/models/user.dart';
 
 void main() {
@@ -58,9 +59,11 @@ void main() {
         'text': 'мама мыла раму',
         'phonemes': <String>['М', 'А', 'Ы', 'Л', 'Р', 'У'],
         'difficulty': 2,
+        'category': 'phrase',
       });
 
       expect(exercise.isPhrase, isTrue);
+      expect(exercise.category, TrainingCategory.phrase);
       expect(exercise.kindLabel, 'фраза');
       expect(exercise.upperText, 'МАМА МЫЛА РАМУ');
     });
@@ -112,6 +115,32 @@ void main() {
         'Б',
         'А',
       ]);
+    });
+
+    test('читает разбор по словам', () {
+      final Assessment assessment = Assessment.fromJson(<String, Object?>{
+        'score': 78,
+        'phoneme_scores': <String, Object?>{'М': 60, 'А': 80},
+        'problematic': <String>['М'],
+        'words': <Map<String, Object?>>[
+          <String, Object?>{
+            'text': 'мама',
+            'score': 90,
+            'phoneme_scores': <String, Object?>{'М': 90, 'А': 92},
+          },
+          <String, Object?>{
+            'text': 'мыла',
+            'score': 64,
+            'phoneme_scores': <String, Object?>{'М': 59, 'Ы': 80},
+          },
+        ],
+      });
+
+      expect(assessment.words.length, 2);
+      expect(assessment.words.first.text, 'мама');
+      expect(assessment.words.first.score, 90);
+      expect(assessment.words.last.isProblematic('М'), isTrue);
+      expect(assessment.words.last.phonemeEntries.length, 2);
     });
 
     test('ограничивает оценку диапазоном 0–100', () {
