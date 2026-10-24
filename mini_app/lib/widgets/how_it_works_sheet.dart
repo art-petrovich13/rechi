@@ -42,9 +42,9 @@ class _HowItWorksSheet extends StatelessWidget {
             const SizedBox(height: 20),
             const _Step(
               icon: Icons.visibility_rounded,
-              title: '1. Посмотрите на слово',
+              title: '1. Посмотрите на слово или фразу',
               text:
-                  'Прочитайте слово и его звуки. Можно повторять целиком '
+                  'Прочитайте слово или фразу и их звуки. Можно повторять целиком '
                   'или по слогам — как удобнее.',
             ),
             const _Step(

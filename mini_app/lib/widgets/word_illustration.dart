@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mini_app/theme/app_theme.dart';
 
-/// Крупная иллюстрация к слову (эмодзи в мягком круге).
+/// Крупная иллюстрация к упражнению (эмодзи в мягком круге).
 class WordIllustration extends StatelessWidget {
   const WordIllustration({super.key, required this.text, this.size = 148});
 
@@ -46,7 +46,7 @@ class WordIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       image: true,
-      label: 'Иллюстрация к слову $text',
+      label: 'Иллюстрация к упражнению $text',
       child: Container(
         width: size,
         height: size,

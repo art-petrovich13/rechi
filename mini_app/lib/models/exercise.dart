@@ -1,6 +1,6 @@
 import 'package:mini_app/models/json_readers.dart';
 
-/// Упражнение: слово и его звуки.
+/// Упражнение: слово или фраза и их звуки.
 class Exercise {
   const Exercise({
     required this.id,
@@ -23,6 +23,12 @@ class Exercise {
   final List<String> phonemes;
   final int difficulty;
 
-  /// Слово заглавными буквами для карточки упражнения.
+  /// Слово или фраза заглавными буквами для карточки упражнения.
   String get upperText => text.toUpperCase();
+
+  /// Упражнение состоит из нескольких слов.
+  bool get isPhrase => text.trim().contains(RegExp(r'\s+'));
+
+  /// Подпись типа упражнения для интерфейса.
+  String get kindLabel => isPhrase ? 'фраза' : 'слово';
 }

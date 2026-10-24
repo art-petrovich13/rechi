@@ -52,6 +52,19 @@ void main() {
       expect(exercise.upperText, 'РЫБА');
     });
 
+    test('распознаёт фразу', () {
+      final Exercise exercise = Exercise.fromJson(<String, Object?>{
+        'id': 15,
+        'text': 'мама мыла раму',
+        'phonemes': <String>['М', 'А', 'Ы', 'Л', 'Р', 'У'],
+        'difficulty': 2,
+      });
+
+      expect(exercise.isPhrase, isTrue);
+      expect(exercise.kindLabel, 'фраза');
+      expect(exercise.upperText, 'МАМА МЫЛА РАМУ');
+    });
+
     test('переживает отсутствие полей', () {
       final Exercise exercise = Exercise.fromJson(<String, Object?>{});
 

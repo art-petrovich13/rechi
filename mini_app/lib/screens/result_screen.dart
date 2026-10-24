@@ -28,6 +28,7 @@ class ResultScreen extends StatelessWidget {
       exercise.phonemes,
     );
     final List<String> problematic = assessment.problematic;
+    final String kind = exercise.isPhrase ? 'Фраза' : 'Слово';
 
     return PageScaffold(
       title: 'Результат',
@@ -39,7 +40,7 @@ class ResultScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               children: <Widget>[
                 Text(
-                  'Слово «${exercise.text}»',
+                  '$kind «${exercise.text}»',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 16,
@@ -338,7 +339,7 @@ class _SuccessCard extends StatelessWidget {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Так держать! Попробуйте следующее слово.',
+                  'Так держать! Попробуйте следующее упражнение.',
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.4,

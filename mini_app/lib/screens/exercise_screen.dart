@@ -20,7 +20,7 @@ import 'package:mini_app/widgets/sound_wave.dart';
 import 'package:mini_app/widgets/word_illustration.dart';
 import 'package:provider/provider.dart';
 
-/// Экран упражнения: слово, запись WAV и отправка на проверку.
+/// Экран упражнения: слово или фраза, запись WAV и отправка на проверку.
 class ExerciseScreen extends StatefulWidget {
   const ExerciseScreen({super.key});
 
@@ -418,7 +418,9 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       actions: <Widget>[
         IconButton(
           onPressed: _loading || _sending ? null : _loadNext,
-          tooltip: 'Другое слово',
+          tooltip: _exercise?.isPhrase == true
+              ? 'Другая фраза'
+              : 'Другое слово',
           icon: const Icon(Icons.refresh_rounded),
         ),
       ],
@@ -446,7 +448,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               CircularProgressIndicator(),
               SizedBox(height: 16),
               Text(
-                'Подбираем слово…',
+                'Подбираем упражнение…',
                 style: TextStyle(fontSize: 16, color: AppColors.muted),
               ),
             ],
@@ -490,19 +492,31 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         ),
         SizedBox(height: compact ? 10 : 18),
         Center(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              exercise.upperText,
-              style: TextStyle(
-                fontSize: compact ? 48 : 62,
-                fontWeight: FontWeight.w800,
-                height: 1,
-                letterSpacing: 3,
-                color: AppColors.ink,
-              ),
-            ),
-          ),
+          child: exercise.isPhrase
+              ? Text(
+                  exercise.upperText,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: compact ? 30 : 38,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                    letterSpacing: 1,
+                    color: AppColors.ink,
+                  ),
+                )
+              : FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    exercise.upperText,
+                    style: TextStyle(
+                      fontSize: compact ? 48 : 62,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                      letterSpacing: 3,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
         ),
         SizedBox(height: compact ? 10 : 14),
         Wrap(
@@ -552,6 +566,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Widget _buildRecorder(BuildContext context) {
+    final bool isPhrase = _exercise?.isPhrase ?? false;
     if (_micDenied) {
       return _MicDenied(
         canUseDemo: _api.isMock,
@@ -637,10 +652,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             label: const Text('Перезаписать'),
           ),
         ] else ...<Widget>[
-          const Text(
-            'Нажмите на микрофон и произнесите слово',
+          Text(
+            isPhrase
+                ? 'Нажмите на микрофон и произнесите фразу'
+                : 'Нажмите на микрофон и произнесите слово',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: AppColors.muted),
+            style: const TextStyle(fontSize: 15, color: AppColors.muted),
           ),
           const SizedBox(height: 4),
           const Text(
