@@ -14,6 +14,9 @@ Docker-образ с Mac**: там arm64, на Windows x64 он не запус�
 
 ---
 
+> На Windows порт 8080 часто занят NVIDIA Broadcast. Поэтому Rechi
+> использует **8081**. Не меняй его на 8080, если не освободил порт.
+
 ## 1. Что скачать на Windows
 
 Открой PowerShell **от администратора**:
@@ -163,7 +166,7 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@rechi-postgres:5432/rechi
 Открой **отдельное** окно PowerShell (его нельзя закрывать):
 
 ```powershell
-cloudflared tunnel --url http://localhost:8080 --no-autoupdate
+cloudflared tunnel --url http://localhost:8081 --no-autoupdate
 ```
 
 Скопируй строку вида:
@@ -190,7 +193,7 @@ https://something.trycloudflare.com
 Запасной вариант без interstitial:
 
 ```powershell
-npx -y tunnelmole 8080
+npx -y tunnelmole 8081
 ```
 
 Он даст `https://....tunnelmole.net`, работает через 443. Нужен Node.js.
@@ -204,7 +207,7 @@ notepad C:\rechi\backend\.env
 # PUBLIC_URL=https://....
 ```
 
-Туннель должен смотреть на **8080** (nginx), не на 8001 и не на 8000.
+Туннель должен смотреть на **8081** (nginx), не на 8001 и не на 8000.
 
 ---
 
@@ -249,9 +252,9 @@ docker compose logs -f api
 Локально:
 
 ```powershell
-curl.exe http://localhost:8080/health
-curl.exe -I http://localhost:8080/app/
-curl.exe http://localhost:8080/docs
+curl.exe http://localhost:8081/health
+curl.exe -I http://localhost:8081/app/
+curl.exe http://localhost:8081/docs
 ```
 
 Через туннель:
@@ -301,10 +304,10 @@ docker compose restart web
 
 | Сервис | Порт | Назначение |
 |---|---|---|
-| `web` (nginx) | 8080 | `/app/` — статика, `/api/`, `/bot/`, `/health`, `/docs` |
+| `web` (nginx) | 8081 | `/app/` — статика, `/api/`, `/bot/`, `/health`, `/docs` |
 | `api` (FastAPI) | 8001 → 8000 | backend, доступен снаружи только через nginx |
 | `db` (Postgres 16) | внутри сети | база, наружу не открыта |
-| cloudflared | — | HTTPS-туннель на `localhost:8080` |
+| cloudflared | — | HTTPS-туннель на `localhost:8081` |
 
 Почему так:
 
@@ -373,7 +376,7 @@ docker compose up -d --build
 | Симптом | Что делать |
 |---|---|
 | Docker не стартует | включи WSL2, виртуализацию в BIOS, перезагрузи ПК |
-| `port 8080 is already allocated` | `netstat -ano \| findstr :8080`; закрой процесс или поменяй `8080:80` в compose на `8081:80` и туннель на 8081 |
+| `port 8081 is already allocated` | `netstat -ano \| findstr :8081`; закрой процесс или поменяй `8081:80` в compose на `8081:80` и туннель на 8081 |
 | `/app/` 404 | нет `mini_app/build/web/index.html`; собери/перенеси build, `docker compose restart web` |
 | `/health` 502 | API не поднялся; `docker compose logs api` |
 | `/assess` 502 | проверь `SPEECH_SUPER_KEY/SECRET/URL`; ключи trial активны; `docker compose logs api` |
@@ -391,9 +394,9 @@ docker compose up -d --build
 - [ ] Git/cloudflared (и Node для Tunnelmole) установлены.
 - [ ] `C:\rechi` содержит `backend\.env`, `mini_app\build\web`, `compose.yaml`.
 - [ ] `PUBLIC_URL` в `.env` обновлён после запуска туннеля.
-- [ ] cloudflared смотрит на `http://localhost:8080`.
+- [ ] cloudflared смотрит на `http://localhost:8081`.
 - [ ] `docker compose up -d --build` — все три контейнера healthy/running.
-- [ ] `http://localhost:8080/app/` открывается.
+- [ ] `http://localhost:8081/app/` открывается.
 - [ ] `https://<туннель>/health` отвечает 200.
 - [ ] В логах API есть `webhook registered`.
 - [ ] @rechi_bot → `/start` → Mini App открывается.
