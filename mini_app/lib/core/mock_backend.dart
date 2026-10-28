@@ -205,6 +205,7 @@ class MockBackend {
   Future<Exercise> nextExercise({
     TrainingCategory? category,
     String? focus,
+    int? excludeId,
   }) async {
     await Future<void>.delayed(nextDelay);
     final String? normalizedFocus = focus?.trim().toUpperCase();
@@ -214,7 +215,8 @@ class MockBackend {
               (category == null || exercise.category == category) &&
               (normalizedFocus == null ||
                   normalizedFocus.isEmpty ||
-                  exercise.phonemes.contains(normalizedFocus)),
+                  exercise.phonemes.contains(normalizedFocus)) &&
+              (excludeId == null || exercise.id != excludeId),
         )
         .toList(growable: false);
     if (pool.isEmpty) {

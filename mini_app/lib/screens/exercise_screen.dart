@@ -80,7 +80,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     super.dispose();
   }
 
-  Future<void> _loadNext() async {
+  Future<void> _loadNext({bool skip = false}) async {
     _timer?.cancel();
     _messageTimer?.cancel();
     if (_recording) {
@@ -106,6 +106,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       final Exercise exercise = await _api.nextExercise(
         category: widget.category,
         focus: widget.focus,
+        excludeId: skip ? _exercise?.id : null,
       );
       if (!mounted) {
         return;
@@ -424,7 +425,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       padding: EdgeInsets.zero,
       actions: <Widget>[
         IconButton(
-          onPressed: _loading || _sending ? null : _loadNext,
+          onPressed: _loading || _sending ? null : () => _loadNext(skip: true),
           tooltip: _exercise?.category == TrainingCategory.sentence
               ? 'Другое предложение'
               : _exercise?.category == TrainingCategory.phrase

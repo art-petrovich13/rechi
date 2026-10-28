@@ -83,16 +83,22 @@ class ApiClient {
   Future<Exercise> nextExercise({
     TrainingCategory? category,
     String? focus,
+    int? excludeId,
   }) async {
     final MockBackend? mock = _mock;
     if (mock != null) {
-      return mock.nextExercise(category: category, focus: focus);
+      return mock.nextExercise(
+        category: category,
+        focus: focus,
+        excludeId: excludeId,
+      );
     }
 
     final Uri base = _uri(epExercisesNext);
     final Map<String, String> query = <String, String>{
       if (category != null) 'category': category.apiValue,
       if (focus != null && focus.isNotEmpty) 'focus': focus,
+      if (excludeId != null) 'exclude_id': '$excludeId',
     };
     final Uri uri = query.isEmpty ? base : base.replace(queryParameters: query);
     final http.Response response = await _send(

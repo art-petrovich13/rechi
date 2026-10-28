@@ -114,6 +114,29 @@ void main() {
       expect(exercise.isPhrase, isTrue);
     });
 
+    test('передаёт exclude_id в query', () async {
+      final MockClient client = MockClient((http.Request request) async {
+        expect(request.url.queryParameters['exclude_id'], '5');
+
+        return _jsonResponse(<String, Object?>{
+          'id': 6,
+          'text': 'сова',
+          'phonemes': <String>['С', 'А', 'В'],
+          'difficulty': 1,
+          'category': 'word',
+        });
+      });
+
+      final ApiClient api = ApiClient(
+        baseUrl: 'https://api.example.com',
+        httpClient: client,
+      )..setToken('jwt');
+
+      final Exercise exercise = await api.nextExercise(excludeId: 5);
+
+      expect(exercise.id, 6);
+    });
+
     test('передаёт focus в query', () async {
       final MockClient client = MockClient((http.Request request) async {
         expect(request.url.queryParameters['focus'], 'Ш');
