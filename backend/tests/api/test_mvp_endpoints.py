@@ -110,6 +110,16 @@ class MvpEndpointTests(unittest.TestCase):
         statement = str(db.scalar.await_args.args[0])
         self.assertIn("phonemes", statement)
 
+    def test_next_exercise_returns_404_when_all_completed(self) -> None:
+        db = MagicMock()
+        db.scalar = AsyncMock(return_value=None)
+        self._override_dependencies(db, MagicMock())
+
+        with TestClient(app) as client:
+            response = client.get("/api/v1/exercises/next?category=word")
+
+        self.assertEqual(response.status_code, 404)
+
     def test_history_returns_per_word_breakdown(self) -> None:
         db = MagicMock()
         attempt = Attempt(
