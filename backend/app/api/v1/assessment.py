@@ -1,5 +1,6 @@
 """HTTP API оценки произношения."""
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -21,6 +22,8 @@ from app.integrations.speechsuper.exceptions import (
     SpeechSuperError,
 )
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["assessment"])
 
@@ -61,6 +64,7 @@ async def assess_audio(
             audio=validated_audio,
         )
     except AudioValidationError as error:
+        logger.warning("Audio validation failed: %s", error)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
@@ -71,6 +75,7 @@ async def assess_audio(
             detail="Exercise not found",
         ) from error
     except SpeechSuperAudioRejectedError as error:
+        logger.warning("SpeechSuper rejected audio: %s", error)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Speech service rejected audio",

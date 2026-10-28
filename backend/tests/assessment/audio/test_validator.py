@@ -59,13 +59,26 @@ class ValidateWavTests(unittest.TestCase):
         with self.assertRaises(InvalidWavError):
             validate_wav(b"0" * 44, "audio/wav")
 
-    def test_rejects_stereo(self) -> None:
-        with self.assertRaises(InvalidWavError):
-            validate_wav(make_wav(channels=2), "audio/wav")
+    def test_normalizes_stereo(self) -> None:
+        result = validate_wav(
+            make_wav(sample_rate=48_000, channels=2),
+            "audio/wav",
+        )
 
-    def test_rejects_wrong_sample_rate(self) -> None:
-        with self.assertRaises(InvalidWavError):
-            validate_wav(make_wav(sample_rate=48_000), "audio/wav")
+        self.assertEqual(result.sample_rate, 16_000)
+        self.assertEqual(result.channels, 1)
+        self.assertEqual(result.sample_width, 2)
+        with wave.open(io.BytesIO(result.data), "rb") as wav_file:
+            self.assertEqual(wav_file.getframerate(), 16_000)
+            self.assertEqual(wav_file.getnchannels(), 1)
+
+    def test_normalizes_sample_rate(self) -> None:
+        result = validate_wav(make_wav(sample_rate=48_000), "audio/wav")
+
+        self.assertEqual(result.sample_rate, 16_000)
+        with wave.open(io.BytesIO(result.data), "rb") as wav_file:
+            self.assertEqual(wav_file.getframerate(), 16_000)
+            self.assertEqual(wav_file.getnframes(), 16_000)
 
     def test_rejects_wrong_sample_width(self) -> None:
         with self.assertRaises(InvalidWavError):
@@ -83,7 +96,7 @@ class ValidateWavTests(unittest.TestCase):
         self.assertEqual(result.duration_seconds, 20.0)
 
     def test_rejects_too_long_audio(self) -> None:
-        with self.assertRaises(AudioSizeError):
+        with self.assertRaises(InvalidAudioDurationError):
             validate_wav(make_wav(duration_seconds=20.1), "audio/wav")
 
 
