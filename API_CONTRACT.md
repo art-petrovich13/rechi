@@ -9,6 +9,8 @@
 
 ## Base URL
 
+**Версия API: `v1`** (backend реализует префикс `/api/v1`).
+
 | Окружение | URL |
 |---|---|
 | Dev | `http://localhost:8000` |
@@ -24,11 +26,11 @@
 Authorization: Bearer <JWT>
 ```
 
-JWT выдаётся `POST /api/auth/telegram` после проверки подписи `initData`.
+JWT выдаётся `POST /api/v1/auth/telegram` после проверки подписи `initData`.
 
 ---
 
-## 1. POST `/api/auth/telegram`
+## 1. POST `/api/v1/auth/telegram`
 
 Проверяет `initData` из `Telegram.WebApp.initData` и возвращает JWT.
 
@@ -64,9 +66,22 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 
 ---
 
-## 2. GET `/api/exercises/next`
+## 2. GET `/api/v1/exercises/next`
 
 **Headers:** `Authorization: Bearer <token>`
+
+**Query (необязательно):**
+
+- `category=word|phrase|sentence` — категория;
+- `focus=Р` — только упражнения, в которых есть этот звук;
+- `exclude_id=5` — не возвращать текущее упражнение (кнопка «Другое»);
+- без параметров — следующее непройденное упражнение.
+
+Категории:
+
+- `word` — одно слово;
+- `phrase` — словосочетание из 2–3 слов;
+- `sentence` — короткое предложение из 4–6 слов.
 
 **Response 200:**
 
@@ -75,25 +90,36 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
   "id": 5,
   "text": "рыба",
   "phonemes": ["Р", "Ы", "Б", "А"],
-  "difficulty": 2
+  "difficulty": 2,
+  "category": "word"
 }
 ```
 
 Правила:
 
 - `id` — целое, уникальное;
-- `text` — слово или короткая фраза на русском;
-- `phonemes` — массив заглавных русских букв в порядке произношения;
+- `text` — слово, словосочетание или короткое предложение (4–6 слов);
+- `phonemes` — уникальные звуки в порядке первого появления; заглавные
+  русские буквы; для фраз и предложений это объединение звуков всех слов;
 - `difficulty` — целое 1–3;
-- сервер не повторяет последнее выданное пользователю упражнение подряд,
-  если в базе больше одного упражнения.
+- `category` — `word`, `phrase` или `sentence`;
+- `focus` фильтрует по вхождению звука в `phonemes`; если упражнений нет —
+  404;
+- сервер отдаёт **первое непройденное** упражнение, сортировка:
+  `difficulty` по возрастанию, затем `id`;
+- пройденным считается упражнение, по которому есть хотя бы одна попытка
+  пользователя;
+- если все упражнения категории/фокуса пройдены — 404 (клиент показывает
+  «На сегодня всё»);
+- `exclude_id` нужен для «Другого»: пропуск не возвращает текущее слово.
 
+**Response 422:** неизвестная категория (валидация FastAPI).
 **Response 401:** невалидный/просроченный токен.
-**Response 404:** упражнения закончились (клиент показывает «На сегодня всё»).
+**Response 404:** упражнений в категории нет (клиент показывает пустое состояние).
 
 ---
 
-## 3. POST `/api/assess`
+## 3. POST `/api/v1/assess`
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -107,6 +133,9 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 **Форматы аудио:**
 
 - основной: `audio/wav` (PCM16, 16 кГц, моно) — так пишет Mini App;
+- backend также принимает PCM16 44,1/48 кГц, моно или стерео и нормализует
+  в 16 кГц/моно перед SpeechSuper (важно для iPhone/Safari);
+- максимум 20 секунд и 8 МБ; для предложений 4–6 слов этого достаточно;
 - допустимые альтернативы: `audio/webm`, `audio/ogg` (старые клиенты и бот).
 
 **Response 200:**
@@ -115,7 +144,24 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 {
   "score": 78,
   "phoneme_scores": { "Р": 45, "Ы": 88, "Б": 90, "А": 95 },
-  "problematic": ["Р"]
+  "problematic": ["Р"],
+  "fluency": 74,
+  "rhythm": 81,
+  "pronunciation": 90,
+  "speed": 186.0,
+  "duration": 3.0,
+  "words": [
+    {
+      "text": "мама",
+      "score": 91,
+      "phoneme_scores": { "М": 90, "А": 92 }
+    },
+    {
+      "text": "мыла",
+      "score": 84,
+      "phoneme_scores": { "М": 88, "Ы": 80, "Л": 85, "А": 83 }
+    }
+  ]
 }
 ```
 
@@ -127,8 +173,22 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 - если в слове звук повторяется (например, «шапка» → `Ш, А, П, К, А`),
   `phoneme_scores` содержит **уникальные** звуки: один балл на звук,
   а не на позицию;
+- backend нормализует фонемы SpeechSuper в кириллицу: латинские `a/o/i/u/y`
+  приходят как `А/О/И/У/Ы`, мягкий знак-апостроф отбрасывается;
+- для фразы («мама мыла раму») backend сам выбирает `sent.eval.ru`, для
+  одного слова — `word.eval.ru`; клиент об этом не думает;
 - `problematic` — подмножество ключей с оценкой ниже порога (рекомендуется < 60),
   отсортировано по возрастанию оценки;
+- `fluency`, `rhythm`, `pronunciation` — необязательные целые 0–100
+  (приходят для фраз/предложений `sent.eval.ru`);
+- `speed`, `duration` — необязательные числа; `duration` в секундах;
+- `words` — разбор по словам в порядке произношения; для одного слова массив
+  из одного элемента. У каждого слова:
+  - `text` — слово из ответа SpeechSuper;
+  - `score` — overall/pronunciation слова;
+  - `phoneme_scores` — уникальные звуки слова с баллами;
+- агрегированные `phoneme_scores` по-прежнему содержат минимум по всем словам;
+- старые клиенты могут игнорировать `words`;
 - аудио не сохраняется на диске и не пишется в БД;
 - результат попытки сохраняется в `attempts` вместе с `phoneme_scores`.
 
@@ -145,7 +205,52 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 
 ---
 
-## 4. GET `/api/progress`
+## 4. GET `/api/v1/history`
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query:** `limit` — 1–50, по умолчанию 20.
+
+Последние попытки пользователя, сначала новые.
+
+**Response 200:**
+
+```json
+{
+  "attempts": [
+    {
+      "id": 26,
+      "exercise_id": 43,
+      "exercise_text": "я вижу большую рыбу",
+      "category": "sentence",
+      "score": 100,
+      "phoneme_scores": { "Я": 100, "В": 100 },
+      "problematic": [],
+      "words": [
+        {
+          "text": "я",
+          "score": 100,
+          "phoneme_scores": { "Й": 100, "А": 100 }
+        }
+      ],
+      "created_at": "2026-10-24T20:14:00+00:00"
+    }
+  ]
+}
+```
+
+Правила:
+
+- `words` сохраняется в `attempts` и содержит разбор по словам;
+- у старых попыток `words` может быть `[]`;
+- `problematic` считается по агрегированным `phoneme_scores` (< 60);
+- `limit` ограничен 1–50.
+
+**Response 401:** невалидный токен.
+
+---
+
+## 5. GET `/api/v1/progress`
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -164,8 +269,9 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 Правила:
 
 - `attempts_count` — общее число попыток пользователя;
-- `weak_phonemes` — до 5 звуков с наименьшим средним баллом, только по тем
-  звукам, где есть хотя бы одна попытка;
+- `weak_phonemes` — звуки со средним баллом ниже 70, отсортированы по
+  возрастанию; учитываются только звуки, где есть хотя бы одна попытка;
+  клиент показывает первые 5;
 - `avg_score` — целое 0–100 (округление среднего);
 - при отсутствии попыток: `{ "attempts_count": 0, "weak_phonemes": [] }`.
 
@@ -185,14 +291,15 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 |---|---|
 | `AuthResponse { token, user }` | `AuthResponse` |
 | `User { id, first_name }` | `User { id, firstName }` |
-| `Exercise { id, text, phonemes, difficulty }` | `Exercise` |
-| `Assessment { score, phoneme_scores, problematic }` | `Assessment { score, phonemeScores, problematic }` |
+| `Exercise { id, text, phonemes, difficulty, category }` | `Exercise` |
+| `Assessment { score, phoneme_scores, problematic, words, fluency, rhythm, pronunciation }` | `Assessment` |
+| `HistoryResponse { attempts }` | `HistoryResponse` |
 | `Progress { attempts_count, weak_phonemes }` | `Progress { attemptsCount, weakPhonemes }` |
 | `WeakPhoneme { phoneme, avg_score }` | `WeakPhoneme { phoneme, avgScore }` |
 
 ## Известные ограничения MVP
 
-- `GET /api/exercises` (список) не нужен: клиент берёт только `next`.
+- `GET /api/v1/exercises` (список) не нужен: клиент берёт только `next`.
 - Аудио не хранится; повторное прослушивание на клиенте — локальное.
 - Нет refresh-токена: JWT живёт достаточно долго для одной сессии Mini App.
 - Нет эндпоинта удаления прогресса.
@@ -204,9 +311,9 @@ JWT выдаётся `POST /api/auth/telegram` после проверки по�
 - В проде Mini App и backend должны быть на одном HTTPS-домене.
   Если домены разные — backend обязан отдавать CORS-заголовки для origin
   Mini App, включая `Authorization`.
-- Клиент таймаутит `POST /api/assess` через 45 секунд, остальные запросы —
+- Клиент таймаутит `POST /api/v1/assess` через 45 секунд, остальные запросы —
   через 20 секунд. GET-запросы один раз повторяются при сетевой ошибке/5xx.
-- Клиент отправляет WAV (`audio/wav`, PCM16, 16 кГц, моно) в поле `audio`;
+- Клиент отправляет WAV (`audio/wav`, PCM16, 16 кГц, моно) в поле `audio`; backend нормализует мобильные варианты 44,1/48 кГц и стерео;
   старые клиенты могут присылать webm/ogg.
 - Клиент не хранит JWT и аудио на диске. Флаг онбординга хранится
   в `localStorage` (`shared_preferences`).

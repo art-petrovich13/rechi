@@ -1,4 +1,32 @@
+import 'package:mini_app/core/constants.dart';
 import 'package:mini_app/models/json_readers.dart';
+
+/// Результат одного слова внутри записи.
+class WordAssessment {
+  const WordAssessment({
+    required this.text,
+    required this.score,
+    required this.phonemeScores,
+  });
+
+  factory WordAssessment.fromJson(Map<String, Object?> json) {
+    return WordAssessment(
+      text: readString(json['text']).trim(),
+      score: readInt(json['score']).clamp(0, 100),
+      phonemeScores: readIntMap(json['phoneme_scores']),
+    );
+  }
+
+  final String text;
+  final int score;
+  final Map<String, int> phonemeScores;
+
+  List<MapEntry<String, int>> get phonemeEntries =>
+      phonemeScores.entries.toList(growable: false);
+
+  bool isProblematic(String phoneme) =>
+      (phonemeScores[phoneme] ?? 100) < problemScoreThreshold;
+}
 
 /// Результат проверки произношения.
 class Assessment {
@@ -6,6 +34,12 @@ class Assessment {
     required this.score,
     required this.phonemeScores,
     required this.problematic,
+    this.words = const <WordAssessment>[],
+    this.fluency,
+    this.rhythm,
+    this.pronunciation,
+    this.speed,
+    this.duration,
   });
 
   factory Assessment.fromJson(Map<String, Object?> json) {
@@ -13,17 +47,42 @@ class Assessment {
     final List<String> problematic = readStringList(json['problematic'])
         .where(scores.containsKey)
         .toList(growable: false);
+    final List<WordAssessment> words = <WordAssessment>[];
+    final Object? rawWords = json['words'];
+    if (rawWords is List) {
+      for (final Object? item in rawWords) {
+        if (item is Map) {
+          words.add(WordAssessment.fromJson(item.cast<String, Object?>()));
+        }
+      }
+    }
 
     return Assessment(
       score: readInt(json['score']).clamp(0, 100),
       phonemeScores: scores,
       problematic: problematic,
+      words: words,
+      fluency: _clampScore(readOptionalInt(json['fluency'])),
+      rhythm: _clampScore(readOptionalInt(json['rhythm'])),
+      pronunciation: _clampScore(readOptionalInt(json['pronunciation'])),
+      speed: readOptionalDouble(json['speed']),
+      duration: readOptionalDouble(json['duration']),
     );
   }
 
   final int score;
   final Map<String, int> phonemeScores;
   final List<String> problematic;
+  final List<WordAssessment> words;
+  final int? fluency;
+  final int? rhythm;
+  final int? pronunciation;
+  final double? speed;
+  final double? duration;
+
+  /// Есть ли метрики беглости/ритма (sent.eval.ru).
+  bool get hasMetrics =>
+      fluency != null || rhythm != null || pronunciation != null;
 
   /// Звуки в порядке упражнения, затем остальные из ответа.
   List<MapEntry<String, int>> phonemeEntries(List<String> order) {
@@ -44,4 +103,23 @@ class Assessment {
   }
 
   bool isProblematic(String phoneme) => problematic.contains(phoneme);
+}
+
+int? _clampScore(int? value) {
+  if (value == null) {
+    return null;
+  }
+  return value.clamp(0, 100);
+}
+
+List<WordAssessment> readWordAssessments(Object? rawWords) {
+  final List<WordAssessment> words = <WordAssessment>[];
+  if (rawWords is List) {
+    for (final Object? item in rawWords) {
+      if (item is Map) {
+        words.add(WordAssessment.fromJson(item.cast<String, Object?>()));
+      }
+    }
+  }
+  return words;
 }

@@ -8,6 +8,7 @@ import 'package:mini_app/core/audio_recorder.dart';
 import 'package:mini_app/core/constants.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/screens/result_screen.dart';
 import 'package:mini_app/theme/app_theme.dart';
 import 'package:mini_app/widgets/error_view.dart';
@@ -20,9 +21,12 @@ import 'package:mini_app/widgets/sound_wave.dart';
 import 'package:mini_app/widgets/word_illustration.dart';
 import 'package:provider/provider.dart';
 
-/// Экран упражнения: слово, запись WAV и отправка на проверку.
+/// Экран упражнения: слово или фраза, запись WAV и отправка на проверку.
 class ExerciseScreen extends StatefulWidget {
-  const ExerciseScreen({super.key});
+  const ExerciseScreen({super.key, required this.category, this.focus});
+
+  final TrainingCategory category;
+  final String? focus;
 
   @override
   State<ExerciseScreen> createState() => _ExerciseScreenState();
@@ -76,7 +80,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     super.dispose();
   }
 
-  Future<void> _loadNext() async {
+  Future<void> _loadNext({bool skip = false}) async {
     _timer?.cancel();
     _messageTimer?.cancel();
     if (_recording) {
@@ -99,7 +103,11 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     });
 
     try {
-      final Exercise exercise = await _api.nextExercise();
+      final Exercise exercise = await _api.nextExercise(
+        category: widget.category,
+        focus: widget.focus,
+        excludeId: skip ? _exercise?.id : null,
+      );
       if (!mounted) {
         return;
       }
@@ -246,7 +254,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       _scrollToBottom();
       unawaited(HapticFeedback.mediumImpact());
       if (autoStopped) {
-        _showSnack('Запись остановлена на 10 секундах.');
+        _showSnack('Запись остановлена на $maxRecordingSeconds секундах.');
       }
     } on RecordingException catch (error) {
       if (!mounted) {
@@ -399,6 +407,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   String _formatDuration(Duration duration) {
+    if (duration.inMilliseconds < 10000) {
+      final String seconds = (duration.inMilliseconds / 1000).toStringAsFixed(
+        1,
+      );
+      return '$seconds с';
+    }
     final int minutes = duration.inMinutes;
     final int seconds = duration.inSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
@@ -411,8 +425,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       padding: EdgeInsets.zero,
       actions: <Widget>[
         IconButton(
-          onPressed: _loading || _sending ? null : _loadNext,
-          tooltip: 'Другое слово',
+          onPressed: _loading || _sending ? null : () => _loadNext(skip: true),
+          tooltip: _exercise?.category == TrainingCategory.sentence
+              ? 'Другое предложение'
+              : _exercise?.category == TrainingCategory.phrase
+              ? 'Другая фраза'
+              : 'Другое слово',
           icon: const Icon(Icons.refresh_rounded),
         ),
       ],
@@ -440,7 +458,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               CircularProgressIndicator(),
               SizedBox(height: 16),
               Text(
-                'Подбираем слово…',
+                'Подбираем упражнение…',
                 style: TextStyle(fontSize: 16, color: AppColors.muted),
               ),
             ],
@@ -451,7 +469,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
     if (_error != null) {
       if (_notFound) {
-        return _NoExercises(onBack: () => Navigator.of(context).pop());
+        return _NoExercises(
+          onBack: () => Navigator.of(context).pop(),
+          focus: widget.focus,
+        );
       }
       return Padding(
         padding: AppSpacing.pagePadding,
@@ -475,6 +496,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
       children: <Widget>[
         _DifficultyBadge(difficulty: exercise.difficulty),
+        if (widget.focus != null) ...<Widget>[
+          const SizedBox(height: 6),
+          _FocusBadge(phoneme: widget.focus!),
+        ],
         SizedBox(height: compact ? 6 : 12),
         Center(
           child: WordIllustration(
@@ -484,31 +509,51 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         ),
         SizedBox(height: compact ? 10 : 18),
         Center(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              exercise.upperText,
-              style: TextStyle(
-                fontSize: compact ? 48 : 62,
-                fontWeight: FontWeight.w800,
-                height: 1,
-                letterSpacing: 3,
-                color: AppColors.ink,
-              ),
-            ),
-          ),
+          child: exercise.isPhrase
+              ? Text(
+                  exercise.upperText,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: compact ? 30 : 38,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
+                    letterSpacing: 1,
+                    color: AppColors.ink,
+                  ),
+                )
+              : FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    exercise.upperText,
+                    style: TextStyle(
+                      fontSize: compact ? 48 : 62,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                      letterSpacing: 3,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
         ),
         SizedBox(height: compact ? 10 : 14),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: exercise.phonemes
-              .map(
-                (String phoneme) => PhonemeChip(phoneme: phoneme, dense: true),
-              )
-              .toList(growable: false),
-        ),
+        if (exercise.isPhrase)
+          const Text(
+            'Проверим звуки в каждом слове',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AppColors.muted),
+          )
+        else
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: exercise.phonemes
+                .map(
+                  (String phoneme) =>
+                      PhonemeChip(phoneme: phoneme, dense: true),
+                )
+                .toList(growable: false),
+          ),
         SizedBox(height: compact ? 8 : 22),
         _buildRecorder(context),
         const SizedBox(height: 18),
@@ -546,6 +591,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Widget _buildRecorder(BuildContext context) {
+    final TrainingCategory category = _exercise?.category ?? widget.category;
+    final String kind = switch (category) {
+      TrainingCategory.sentence => 'предложение',
+      TrainingCategory.phrase => 'фразу',
+      TrainingCategory.word => 'слово',
+    };
     if (_micDenied) {
       return _MicDenied(
         canUseDemo: _api.isMock,
@@ -631,14 +682,14 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             label: const Text('Перезаписать'),
           ),
         ] else ...<Widget>[
-          const Text(
-            'Нажмите на микрофон и произнесите слово',
+          Text(
+            'Нажмите на микрофон и произнесите $kind',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: AppColors.muted),
+            style: const TextStyle(fontSize: 15, color: AppColors.muted),
           ),
           const SizedBox(height: 4),
           const Text(
-            'До 10 секунд',
+            'До 20 секунд',
             style: TextStyle(fontSize: 13, color: AppColors.muted),
           ),
         ],
@@ -872,10 +923,39 @@ class _InlineError extends StatelessWidget {
   }
 }
 
+class _FocusBadge extends StatelessWidget {
+  const _FocusBadge({required this.phoneme});
+
+  final String phoneme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.primarySoft,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+        ),
+        child: Text(
+          'Тренируем звук $phoneme',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primaryDark,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NoExercises extends StatelessWidget {
-  const _NoExercises({required this.onBack});
+  const _NoExercises({required this.onBack, this.focus});
 
   final VoidCallback onBack;
+  final String? focus;
 
   @override
   Widget build(BuildContext context) {
@@ -901,20 +981,25 @@ class _NoExercises extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                'На сегодня всё!',
-                style: TextStyle(
+              Text(
+                focus == null
+                    ? 'На сегодня всё!'
+                    : 'Нет упражнений со звуком $focus',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   color: AppColors.ink,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Все упражнения пройдены. Возвращайтесь завтра — '
-                'или начните заново с главного экрана.',
+              Text(
+                focus == null
+                    ? 'Все упражнения пройдены. Возвращайтесь завтра — '
+                          'или начните заново с главного экрана.'
+                    : 'Попробуйте другой звук или вернитесь на главный экран.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   height: 1.45,
                   color: AppColors.muted,

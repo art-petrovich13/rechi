@@ -1,6 +1,7 @@
 """ORM-модель попытки произношения."""
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -27,6 +28,11 @@ class Attempt(Base):
     )
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     phoneme_scores: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False)
+    words: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

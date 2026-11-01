@@ -1,5 +1,6 @@
 """HTTP API оценки произношения."""
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.db import get_db
 from app.api.dependencies.speechsuper import get_speech_super_client
-from app.api.v1.dto.assessment import AssessmentResponse
+from app.api.v1.dto.assessment import AssessmentResponse, WordAssessmentResponse
 from app.api.v1.dto.common import ErrorResponse
 from app.assessment.audio.exceptions import AudioValidationError
 from app.assessment.audio.validator import MAX_AUDIO_BYTES, validate_wav
@@ -22,12 +23,15 @@ from app.integrations.speechsuper.exceptions import (
 )
 
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["assessment"])
 
 
 @router.post(
     "/assess",
     response_model=AssessmentResponse,
+    response_model_exclude_none=True,
     responses={
         status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
@@ -60,6 +64,7 @@ async def assess_audio(
             audio=validated_audio,
         )
     except AudioValidationError as error:
+        logger.warning("Audio validation failed: %s", error)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
@@ -70,6 +75,7 @@ async def assess_audio(
             detail="Exercise not found",
         ) from error
     except SpeechSuperAudioRejectedError as error:
+        logger.warning("SpeechSuper rejected audio: %s", error)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Speech service rejected audio",
@@ -84,4 +90,17 @@ async def assess_audio(
         score=result.score,
         phoneme_scores=result.phoneme_scores,
         problematic=result.problematic,
+        words=[
+            WordAssessmentResponse(
+                text=word.text,
+                score=word.score,
+                phoneme_scores=word.phoneme_scores,
+            )
+            for word in result.words
+        ],
+        fluency=result.fluency,
+        rhythm=result.rhythm,
+        pronunciation=result.pronunciation,
+        speed=result.speed,
+        duration=result.duration,
     )

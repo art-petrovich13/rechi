@@ -6,7 +6,9 @@ import 'package:mini_app/core/constants.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/history.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/models/user.dart';
 
 /// Демо-бэкенд для работы без сервера.
@@ -122,6 +124,61 @@ class MockBackend {
       phonemes: <String>['Р', 'А', 'К', 'Е', 'Т', 'А'],
       difficulty: 3,
     ),
+    Exercise(
+      id: 16,
+      text: 'мама мыла раму',
+      phonemes: <String>['М', 'А', 'Ы', 'Л', 'Р', 'У'],
+      difficulty: 2,
+      category: TrainingCategory.phrase,
+    ),
+    Exercise(
+      id: 17,
+      text: 'красная машина',
+      phonemes: <String>['К', 'Р', 'А', 'С', 'Н', 'Я', 'М', 'Ш', 'И'],
+      difficulty: 2,
+      category: TrainingCategory.phrase,
+    ),
+    Exercise(
+      id: 18,
+      text: 'я вижу большую рыбу',
+      phonemes: <String>[
+        'Я',
+        'В',
+        'И',
+        'Ж',
+        'У',
+        'Б',
+        'О',
+        'Л',
+        'Ш',
+        'А',
+        'Ю',
+        'Р',
+        'Ы',
+      ],
+      difficulty: 2,
+      category: TrainingCategory.sentence,
+    ),
+    Exercise(
+      id: 19,
+      text: 'мама купила красную шапку',
+      phonemes: <String>[
+        'М',
+        'А',
+        'К',
+        'У',
+        'П',
+        'И',
+        'Л',
+        'Р',
+        'С',
+        'Н',
+        'Ю',
+        'Ш',
+      ],
+      difficulty: 3,
+      category: TrainingCategory.sentence,
+    ),
   ];
 
   static const Set<String> _hardPhonemes = <String>{
@@ -144,18 +201,39 @@ class MockBackend {
     );
   }
 
-  /// Случайное упражнение, не повторяющее предыдущее.
-  Future<Exercise> nextExercise() async {
+  /// Случайное упражнение категории, не повторяющее предыдущее.
+  Future<Exercise> nextExercise({
+    TrainingCategory? category,
+    String? focus,
+    int? excludeId,
+  }) async {
     await Future<void>.delayed(nextDelay);
-    if (_exercises.length == 1) {
-      _lastExerciseId = _exercises.first.id;
-      return _exercises.first;
+    final String? normalizedFocus = focus?.trim().toUpperCase();
+    final List<Exercise> pool = _exercises
+        .where(
+          (Exercise exercise) =>
+              (category == null || exercise.category == category) &&
+              (normalizedFocus == null ||
+                  normalizedFocus.isEmpty ||
+                  exercise.phonemes.contains(normalizedFocus)) &&
+              (excludeId == null || exercise.id != excludeId),
+        )
+        .toList(growable: false);
+    if (pool.isEmpty) {
+      throw const ApiException(
+        statusCode: 404,
+        userMessage: 'В этой категории пока нет упражнений.',
+      );
+    }
+    if (pool.length == 1) {
+      _lastExerciseId = pool.first.id;
+      return pool.first;
     }
 
-    Exercise candidate = _exercises[_random.nextInt(_exercises.length)];
+    Exercise candidate = pool[_random.nextInt(pool.length)];
     var guard = 0;
     while (candidate.id == _lastExerciseId && guard < 10) {
-      candidate = _exercises[_random.nextInt(_exercises.length)];
+      candidate = pool[_random.nextInt(pool.length)];
       guard++;
     }
     _lastExerciseId = candidate.id;
@@ -218,15 +296,91 @@ class MockBackend {
             .toList(growable: false)
           ..sort((String a, String b) => scores[a]!.compareTo(scores[b]!));
 
+    final List<WordAssessment> words = exercise.isPhrase
+        ? _wordAssessments(exercise, scores, overall)
+        : <WordAssessment>[
+            WordAssessment(
+              text: exercise.text,
+              score: overall,
+              phonemeScores: scores,
+            ),
+          ];
+    final bool hasMetrics = exercise.isPhrase;
+    final int metricBase = (overall + 6).clamp(0, 100);
     final Assessment assessment = Assessment(
       score: overall,
       phonemeScores: scores,
       problematic: problematic,
+      words: words,
+      fluency: hasMetrics ? metricBase : null,
+      rhythm: hasMetrics ? (overall + 2).clamp(0, 100) : null,
+      pronunciation: hasMetrics ? overall : null,
+      duration: hasMetrics ? 2.8 : null,
     );
-    _attempts.add(_MockAttempt(assessment: assessment));
+    _attempts.add(
+      _MockAttempt(
+        exercise: exercise,
+        assessment: assessment,
+        createdAt: DateTime.now().toUtc(),
+      ),
+    );
     return assessment;
   }
 
+  /// История попыток текущей демо-сессии.
+  Future<HistoryResponse> history({int limit = 20}) async {
+    await Future<void>.delayed(progressDelay);
+    final List<HistoryEntry> entries = <HistoryEntry>[];
+    for (var index = 0; index < _attempts.length && index < limit; index++) {
+      final _MockAttempt attempt = _attempts[_attempts.length - 1 - index];
+      entries.add(
+        HistoryEntry(
+          id: _attempts.length - index,
+          exerciseId: attempt.exercise.id,
+          exerciseText: attempt.exercise.text,
+          category: attempt.exercise.category,
+          score: attempt.assessment.score,
+          phonemeScores: attempt.assessment.phonemeScores,
+          problematic: attempt.assessment.problematic,
+          words: attempt.assessment.words,
+          createdAt: attempt.createdAt,
+        ),
+      );
+    }
+    return HistoryResponse(attempts: entries);
+  }
+
+  List<WordAssessment> _wordAssessments(
+    Exercise exercise,
+    Map<String, int> scores,
+    int overall,
+  ) {
+    final List<WordAssessment> result = <WordAssessment>[];
+    for (final String word in exercise.text.split(RegExp(r'\s+'))) {
+      final List<String> letters = word
+          .toUpperCase()
+          .replaceAll(RegExp(r'[^А-ЯЁ]'), '')
+          .split('');
+      final List<String> unique = <String>[];
+      for (final String letter in letters) {
+        if (!unique.contains(letter)) {
+          unique.add(letter);
+        }
+      }
+      result.add(
+        WordAssessment(
+          text: word,
+          score: overall,
+          phonemeScores: <String, int>{
+            for (final String phoneme in unique) phoneme: scores[phoneme] ?? 80,
+          },
+        ),
+      );
+    }
+    return result;
+  }
+
+  /// Прогресс, собранный из попыток текущей сессии.
   /// Прогресс, собранный из попыток текущей сессии.
   Future<Progress> progress() async {
     await Future<void>.delayed(progressDelay);
@@ -276,7 +430,13 @@ class MockBackend {
 }
 
 class _MockAttempt {
-  const _MockAttempt({required this.assessment});
+  const _MockAttempt({
+    required this.exercise,
+    required this.assessment,
+    required this.createdAt,
+  });
 
+  final Exercise exercise;
   final Assessment assessment;
+  final DateTime createdAt;
 }

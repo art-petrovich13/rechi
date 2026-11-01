@@ -16,3 +16,8 @@ class Exercise(Base):
     text: Mapped[str] = mapped_column(String(255), nullable=False)
     phonemes: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     difficulty: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    category: Mapped[str] = mapped_column(
+        String(16),
+        default="word",
+        nullable=False,
+    )

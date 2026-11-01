@@ -10,7 +10,9 @@ import 'package:mini_app/core/mock_backend.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/history.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 
 /// Единый HTTP-клиент приложения.
 ///
@@ -21,9 +23,20 @@ class ApiClient {
     http.Client? httpClient,
     MockBackend? mockBackend,
     bool? mock,
-  }) : _baseUrl = _normalize(baseUrl ?? apiBaseUrl),
+  }) : _baseUrl = _normalize(baseUrl ?? _defaultBaseUrl()),
        _http = httpClient ?? http.Client(),
        _mock = mockBackend ?? ((mock ?? useMockApi) ? MockBackend() : null);
+
+  static String _defaultBaseUrl() {
+    if (!useSameOriginApi) {
+      return apiBaseUrl;
+    }
+    final String origin = Uri.base.origin;
+    if (origin.isEmpty || origin == 'null') {
+      return apiBaseUrl;
+    }
+    return origin;
+  }
 
   final String _baseUrl;
   final http.Client _http;
@@ -66,15 +79,30 @@ class ApiClient {
     return AuthResponse.fromJson(_decodeMap(response));
   }
 
-  /// `GET /api/exercises/next`.
-  Future<Exercise> nextExercise() async {
+  /// `GET /api/exercises/next` с необязательной категорией.
+  Future<Exercise> nextExercise({
+    TrainingCategory? category,
+    String? focus,
+    int? excludeId,
+  }) async {
     final MockBackend? mock = _mock;
     if (mock != null) {
-      return mock.nextExercise();
+      return mock.nextExercise(
+        category: category,
+        focus: focus,
+        excludeId: excludeId,
+      );
     }
 
+    final Uri base = _uri(epExercisesNext);
+    final Map<String, String> query = <String, String>{
+      if (category != null) 'category': category.apiValue,
+      if (focus != null && focus.isNotEmpty) 'focus': focus,
+      if (excludeId != null) 'exclude_id': '$excludeId',
+    };
+    final Uri uri = query.isEmpty ? base : base.replace(queryParameters: query);
     final http.Response response = await _send(
-      () => _http.get(_uri(epExercisesNext), headers: _authHeaders),
+      () => _http.get(uri, headers: _authHeaders),
       timeout: apiTimeout,
       retries: 1,
     );
@@ -109,6 +137,23 @@ class ApiClient {
       return http.Response.fromStream(streamed);
     }, timeout: assessTimeout);
     return Assessment.fromJson(_decodeMap(response));
+  }
+
+  /// `GET /api/v1/history` — последние попытки.
+  Future<HistoryResponse> history({int limit = 20}) async {
+    final MockBackend? mock = _mock;
+    if (mock != null) {
+      return mock.history(limit: limit);
+    }
+
+    final Uri uri = _uri(epHistory)
+        .replace(queryParameters: <String, String>{'limit': '$limit'});
+    final http.Response response = await _send(
+      () => _http.get(uri, headers: _authHeaders),
+      timeout: apiTimeout,
+      retries: 1,
+    );
+    return HistoryResponse.fromJson(_decodeMap(response));
   }
 
   /// `GET /api/progress`.

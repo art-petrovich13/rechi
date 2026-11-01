@@ -9,7 +9,9 @@ import 'package:mini_app/core/api_exception.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/history.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 
 http.Response _jsonResponse(Object body, {int status = 200}) {
   return http.Response.bytes(
@@ -28,7 +30,7 @@ void main() {
         expect(request.method, 'POST');
         expect(
           request.url.toString(),
-          'https://api.example.com/api/auth/telegram',
+          'https://api.example.com/api/v1/auth/telegram',
         );
         expect(request.headers['content-type'], contains('application/json'));
         final Map<String, Object?> body =
@@ -86,10 +88,82 @@ void main() {
   });
 
   group('ApiClient.nextExercise', () {
+    test('передаёт категорию в query', () async {
+      final MockClient client = MockClient((http.Request request) async {
+        expect(request.url.queryParameters['category'], 'sentence');
+
+        return _jsonResponse(<String, Object?>{
+          'id': 43,
+          'text': 'я вижу большую рыбу',
+          'phonemes': <String>['Я', 'В', 'И'],
+          'difficulty': 2,
+          'category': 'sentence',
+        });
+      });
+
+      final ApiClient api = ApiClient(
+        baseUrl: 'https://api.example.com',
+        httpClient: client,
+      )..setToken('jwt');
+
+      final Exercise exercise = await api.nextExercise(
+        category: TrainingCategory.sentence,
+      );
+
+      expect(exercise.category, TrainingCategory.sentence);
+      expect(exercise.isPhrase, isTrue);
+    });
+
+    test('передаёт exclude_id в query', () async {
+      final MockClient client = MockClient((http.Request request) async {
+        expect(request.url.queryParameters['exclude_id'], '5');
+
+        return _jsonResponse(<String, Object?>{
+          'id': 6,
+          'text': 'сова',
+          'phonemes': <String>['С', 'А', 'В'],
+          'difficulty': 1,
+          'category': 'word',
+        });
+      });
+
+      final ApiClient api = ApiClient(
+        baseUrl: 'https://api.example.com',
+        httpClient: client,
+      )..setToken('jwt');
+
+      final Exercise exercise = await api.nextExercise(excludeId: 5);
+
+      expect(exercise.id, 6);
+    });
+
+    test('передаёт focus в query', () async {
+      final MockClient client = MockClient((http.Request request) async {
+        expect(request.url.queryParameters['focus'], 'Ш');
+
+        return _jsonResponse(<String, Object?>{
+          'id': 9,
+          'text': 'шар',
+          'phonemes': <String>['Ш', 'А', 'Р'],
+          'difficulty': 1,
+          'category': 'word',
+        });
+      });
+
+      final ApiClient api = ApiClient(
+        baseUrl: 'https://api.example.com',
+        httpClient: client,
+      )..setToken('jwt');
+
+      final Exercise exercise = await api.nextExercise(focus: 'Ш');
+
+      expect(exercise.text, 'шар');
+    });
+
     test('ставит Bearer-токен и читает упражнение', () async {
       final MockClient client = MockClient((http.Request request) async {
         expect(request.headers['Authorization'], 'Bearer jwt');
-        expect(request.url.path, '/api/exercises/next');
+        expect(request.url.path, '/api/v1/exercises/next');
 
         return _jsonResponse(<String, Object?>{
           'id': 5,
@@ -108,6 +182,40 @@ void main() {
 
       expect(exercise.id, 5);
       expect(exercise.phonemes, <String>['Р', 'Ы', 'Б', 'А']);
+    });
+  });
+
+  group('ApiClient.history', () {
+    test('читает историю с limit', () async {
+      final MockClient client = MockClient((http.Request request) async {
+        expect(request.url.path, '/api/v1/history');
+        expect(request.url.queryParameters['limit'], '5');
+
+        return _jsonResponse(<String, Object?>{
+          'attempts': <Map<String, Object?>>[
+            <String, Object?>{
+              'id': 7,
+              'exercise_id': 43,
+              'exercise_text': 'я вижу большую рыбу',
+              'category': 'sentence',
+              'score': 82,
+              'phoneme_scores': <String, Object?>{'Я': 90},
+              'problematic': <String>[],
+              'words': <Map<String, Object?>>[],
+              'created_at': '2026-10-24T12:00:00+00:00',
+            },
+          ],
+        });
+      });
+
+      final ApiClient api = ApiClient(
+        baseUrl: 'https://api.example.com',
+        httpClient: client,
+      )..setToken('jwt');
+
+      final HistoryResponse history = await api.history(limit: 5);
+
+      expect(history.attempts.single.exerciseText, 'я вижу большую рыбу');
     });
   });
 
@@ -190,7 +298,7 @@ void main() {
     test('отправляет multipart с аудио и exercise_id', () async {
       final MockClient client = MockClient((http.Request request) async {
         expect(request.method, 'POST');
-        expect(request.url.path, '/api/assess');
+        expect(request.url.path, '/api/v1/assess');
         expect(request.headers['Authorization'], 'Bearer jwt');
         expect(
           request.headers['content-type'],

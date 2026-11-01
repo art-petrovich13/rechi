@@ -5,17 +5,17 @@ import 'package:flutter/material.dart';
 /// Спокойная светлая тема с крупными контрастными элементами:
 /// аудитория — дети и взрослые после инсульта.
 abstract final class AppColors {
-  static const Color backgroundTop = Color(0xFFF4F7FB);
-  static const Color backgroundBottom = Color(0xFFE7F3EE);
+  static const Color backgroundTop = Color(0xFFF5F9FF);
+  static const Color backgroundBottom = Color(0xFFE4F0FC);
   static const Color surface = Color(0xFFFFFFFF);
 
-  static const Color primary = Color(0xFF1F7A6D);
-  static const Color primaryDark = Color(0xFF155B52);
-  static const Color primaryBright = Color(0xFF2E9C8A);
-  static const Color primarySoft = Color(0xFFDDF1EC);
+  static const Color primary = Color(0xFF4A90D9);
+  static const Color primaryDark = Color(0xFF2F6FAF);
+  static const Color primaryBright = Color(0xFF6FA8DC);
+  static const Color primarySoft = Color(0xFFE3F0FD);
 
-  static const Color accent = Color(0xFFF2A93B);
-  static const Color accentSoft = Color(0xFFFFF1D9);
+  static const Color accent = Color(0xFF8FC5F4);
+  static const Color accentSoft = Color(0xFFEAF4FF);
 
   static const Color ink = Color(0xFF172A3A);
   static const Color muted = Color(0xFF5A6A79);
@@ -179,7 +179,7 @@ abstract final class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(60),
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.primaryDark,
           foregroundColor: Colors.white,
           disabledBackgroundColor: const Color(0xFFE8EEF3),
           disabledForegroundColor: AppColors.muted,

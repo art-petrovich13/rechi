@@ -3,7 +3,9 @@ import 'package:mini_app/core/auth_service.dart';
 import 'package:mini_app/core/constants.dart';
 import 'package:mini_app/core/progress_service.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/screens/exercise_screen.dart';
+import 'package:mini_app/screens/history_screen.dart';
 import 'package:mini_app/theme/app_theme.dart';
 import 'package:mini_app/widgets/app_logo.dart';
 import 'package:mini_app/widgets/demo_badge.dart';
@@ -26,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const String _introKey = 'intro_seen';
 
   bool _introChecked = false;
+  TrainingCategory _selectedCategory = TrainingCategory.word;
 
   @override
   void initState() {
@@ -61,9 +64,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _startTraining() async {
+    final TrainingCategory category = _selectedCategory;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) => const ExerciseScreen(),
+        builder: (BuildContext context) => ExerciseScreen(category: category),
       ),
     );
     if (!mounted) {
@@ -74,6 +78,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refresh() {
     return context.read<ProgressService>().load(silent: true);
+  }
+
+  Future<void> _startFocus(String phoneme) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) =>
+            ExerciseScreen(category: TrainingCategory.word, focus: phoneme),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await context.read<ProgressService>().load(silent: true);
+  }
+
+  Future<void> _openHistory() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => const HistoryScreen(),
+      ),
+    );
   }
 
   @override
@@ -98,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: <Widget>[
                   _HomeHeader(
                     isDemo: auth.isDemo,
+                    onHistory: _openHistory,
                     onHelp: () => showHowItWorksSheet(context),
                   ),
                   const SizedBox(height: 28),
@@ -119,8 +145,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     const _DemoBanner(),
                   ],
                   const SizedBox(height: 22),
-                  _ProgressCard(progress: progress, onRetry: progress.load),
+                  _ProgressCard(
+                    progress: progress,
+                    onRetry: progress.load,
+                    onFocus: _startFocus,
+                  ),
                   const SizedBox(height: 22),
+                  _CategoryPicker(
+                    selected: _selectedCategory,
+                    onSelected: (TrainingCategory category) {
+                      setState(() => _selectedCategory = category);
+                    },
+                  ),
+                  const SizedBox(height: 14),
                   PrimaryButton(
                     label: 'Начать тренировку',
                     icon: Icons.mic_rounded,
@@ -145,14 +182,83 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+class _CategoryPicker extends StatelessWidget {
+  const _CategoryPicker({required this.selected, required this.onSelected});
+
+  final TrainingCategory selected;
+  final ValueChanged<TrainingCategory> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text(
+          'Что тренируем?',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.ink,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: TrainingCategory.values
+              .map(
+                (TrainingCategory category) => ChoiceChip(
+                  label: Text(category.label),
+                  selected: selected == category,
+                  onSelected: (_) => onSelected(category),
+                  showCheckmark: false,
+                  selectedColor: AppColors.primarySoft,
+                  backgroundColor: AppColors.surface,
+                  side: BorderSide(
+                    color: selected == category
+                        ? AppColors.primaryDark
+                        : AppColors.outline,
+                    width: selected == category ? 1.5 : 1,
+                  ),
+                  labelStyle: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: selected == category
+                        ? AppColors.primaryDark
+                        : AppColors.ink,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+              )
+              .toList(growable: false),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          selected.description,
+          style: const TextStyle(fontSize: 13, color: AppColors.muted),
+        ),
+      ],
+    );
+  }
+}
+
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.isDemo, required this.onHelp});
+  const _HomeHeader({
+    required this.isDemo,
+    required this.onHistory,
+    required this.onHelp,
+  });
 
   final bool isDemo;
+  final VoidCallback onHistory;
   final VoidCallback onHelp;
 
   @override
   Widget build(BuildContext context) {
+    final bool narrow = MediaQuery.sizeOf(context).width < 360;
     return Row(
       children: <Widget>[
         const AppLogo(size: 46),
@@ -182,7 +288,15 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (isDemo) ...<Widget>[const DemoBadge(), const SizedBox(width: 4)],
+        if (isDemo && !narrow) ...<Widget>[
+          const DemoBadge(),
+          const SizedBox(width: 4),
+        ],
+        IconButton(
+          onPressed: onHistory,
+          tooltip: 'История',
+          icon: const Icon(Icons.history_rounded),
+        ),
         IconButton(
           onPressed: onHelp,
           tooltip: 'Как заниматься',
@@ -201,14 +315,14 @@ class _DemoBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.accentSoft,
+        color: AppColors.primarySoft,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
       ),
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.science_outlined, size: 20, color: AppColors.warning),
+          Icon(Icons.science_outlined, size: 20, color: AppColors.primaryDark),
           SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -227,10 +341,15 @@ class _DemoBanner extends StatelessWidget {
 }
 
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.progress, required this.onRetry});
+  const _ProgressCard({
+    required this.progress,
+    required this.onRetry,
+    required this.onFocus,
+  });
 
   final ProgressService progress;
   final VoidCallback onRetry;
+  final ValueChanged<String> onFocus;
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +417,7 @@ class _ProgressCard extends StatelessWidget {
               onRetry: onRetry,
             )
           else ...<Widget>[
-            _ProgressContent(data: data),
+            _ProgressContent(data: data, onFocus: onFocus),
             if (progress.errorMessage != null) ...<Widget>[
               const SizedBox(height: 14),
               ErrorView(
@@ -315,9 +434,10 @@ class _ProgressCard extends StatelessWidget {
 }
 
 class _ProgressContent extends StatelessWidget {
-  const _ProgressContent({required this.data});
+  const _ProgressContent({required this.data, required this.onFocus});
 
   final Progress data;
+  final ValueChanged<String> onFocus;
 
   @override
   Widget build(BuildContext context) {
@@ -368,20 +488,25 @@ class _ProgressContent extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (data.weakPhonemes.isEmpty)
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Icon(
-                Icons.check_circle_outline_rounded,
+                data.attemptsCount == 0
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.verified_rounded,
                 size: 20,
                 color: AppColors.primary,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Пока нет результатов. После первой тренировки здесь '
-                  'появятся звуки, над которыми стоит поработать.',
-                  style: TextStyle(
+                  data.attemptsCount == 0
+                      ? 'Пока нет результатов. После первой тренировки здесь '
+                            'появятся звуки, над которыми стоит поработать.'
+                      : 'Отличный прогресс: слабых звуков пока нет. '
+                            'Продолжайте тренироваться.',
+                  style: const TextStyle(
                     fontSize: 14,
                     height: 1.4,
                     color: AppColors.muted,
@@ -400,10 +525,18 @@ class _ProgressContent extends StatelessWidget {
                     phoneme: item.phoneme,
                     score: item.avgScore,
                     dense: true,
+                    onTap: () => onFocus(item.phoneme),
                   ),
                 )
                 .toList(growable: false),
           ),
+        if (data.weakPhonemes.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 8),
+          const Text(
+            'Нажмите на звук, чтобы потренировать его отдельно.',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+        ],
       ],
     );
   }

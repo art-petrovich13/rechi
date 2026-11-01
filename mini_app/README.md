@@ -3,20 +3,27 @@
 Telegram Mini App для тренировки речи: восстановление после инсульта
 и занятия с детьми с нарушениями речи.
 
-Пользователь видит слово, записывает произношение, получает оценку 0–100
-и разбивку по звукам. Слабые звуки попадают в прогресс.
+Пользователь выбирает категорию (слово, словосочетание или предложение),
+> записывает произношение и получает оценку 0–100 с разбором по звукам
+> и словам, темпом/ритмом и историей попыток. Слабые звуки попадают
+> в прогресс, и по ним можно запустить отдельную тренировку.
 
-> **Зона ответственности:** только этот каталог (`mini_app/**`).
-> Backend живёт отдельно и не редактируется из этого проекта.
+> **Границы:** клиент — `mini_app/**`, backend — `backend/**`;
+> изменения backend согласуются с владельцем.
+>
+> Полный запуск на чистом Windows: [WINDOWS_SETUP.md](../WINDOWS_SETUP.md).
 
 ---
 
 ## Что уже есть
 
-- Home: приветствие, прогресс, слабые звуки, старт тренировки.
-- Exercise: слово, иллюстрация, звуки, запись WAV, отправка на проверку.
-- Result: общая оценка, баллы по звукам, советы по артикуляции,
-  «Ещё раз» / «Дальше».
+- Home: приветствие, прогресс, слабые звуки (кликабельные), категории,
+  история, старт тренировки.
+- Exercise: слово/фраза/предложение, иллюстрация, звуки, запись WAV
+  до 20 секунд, отправка на проверку, фокус «Тренируем звук».
+- Result: общая оценка, беглость/ритм, баллы по звукам, разбор по словам,
+  советы по артикуляции, «Ещё раз» / «Дальше».
+- History: последние попытки с раскрытием по словам и звукам.
 - Авторизация через `Telegram.WebApp.initData` → JWT.
 - Единый `ApiClient` с таймаутами, retry для GET и понятными ошибками.
 - Демо-режим без backend (`MOCK_API=true`) с правдоподобными оценками.
@@ -33,9 +40,13 @@ Telegram Mini App для тренировки речи: восстановлен
 |---|---|
 | ![Home](docs/screenshots/home.png) | ![Упражнение](docs/screenshots/exercise.png) |
 
-| Результат | «Как заниматься» |
+| Результат | История |
 |---|---|
-| ![Результат](docs/screenshots/result.png) | ![Онбординг](docs/screenshots/how-it-works.png) |
+| ![Результат](docs/screenshots/result.png) | ![История](docs/screenshots/history.png) |
+
+| «Как заниматься» |
+|---|
+| ![Онбординг](docs/screenshots/how-it-works.png) |
 
 Ещё есть [`auth-error.png`](docs/screenshots/auth-error.png) — экран
 «Откройте через Telegram» в production-сборке без `initData`.
@@ -112,6 +123,110 @@ Backend должен разрешать CORS для origin, с которого 
 
 ---
 
+## Локальная проверка с реальным backend (без Telegram)
+
+Backend можно поднять в Docker, а Mini App — через dev-прокси, который
+раздаёт сборку по `/app/` и подставляет валидный `initData` тестового
+пользователя. Backend при этом по-настоящему проверяет HMAC и JWT.
+
+### 1. Backend + PostgreSQL
+
+Из корня репозитория:
+
+```bash
+cd backend
+docker build -t rechi-backend .
+
+docker network create rechi-net 2>/dev/null || true
+
+docker run -d --name rechi-postgres --network rechi-net \
+  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=rechi \
+  -v rechi_pgdata:/var/lib/postgresql/data postgres:16
+
+cp .env.example .env
+# В .env минимум:
+# BOT_TOKEN=123456:TEST_TOKEN_FOR_LOCAL
+# JWT_SECRET=local-dev-secret-please-change
+# DATABASE_URL=postgresql+asyncpg://postgres:postgres@rechi-postgres:5432/rechi
+# SPEECH_SUPER_KEY=local
+# SPEECH_SUPER_SECRET=local
+# SPEECH_SUPER_URL=http://host.docker.internal:9000
+
+docker run --rm --network rechi-net --env-file .env rechi-backend alembic upgrade head
+docker run --rm --network rechi-net --env-file .env rechi-backend python seed.py
+docker run -d --name rechi-api --network rechi-net --env-file .env -p 8001:8000 rechi-backend
+```
+
+`8001`, потому что на этой машине порт `8000` уже занят другим проектом.
+Если свободен — можно использовать `-p 8000:8000`.
+
+Swagger: <http://localhost:8001/docs>  
+Health: <http://localhost:8001/health>
+
+### 2. Заглушка SpeechSuper (если нет реальных ключей)
+
+```bash
+cd mini_app
+python3 tool/fake_speechsuper.py
+```
+
+Она возвращает баллы по буквам слова: первый звук проблемный, остальные
+хорошие. Это только для локального UI-теста, не для оценки качества речи.
+Если `SPEECH_SUPER_KEY/SECRET` пустые или заглушка не запущена, `/assess`
+вернёт `502`.
+
+### 3. Сборка клиента и dev-прокси
+
+```bash
+cd mini_app
+flutter build web --release \
+  --base-href /app/ \
+  --dart-define=SAME_ORIGIN_API=true \
+  --no-web-resources-cdn
+
+DEV_BOT_TOKEN=123456:TEST_TOKEN_FOR_LOCAL \
+BACKEND_URL=http://127.0.0.1:8001 \
+node tool/dev_proxy.mjs
+```
+
+Открыть: <http://localhost:8080/app/>
+
+`SAME_ORIGIN_API=true` означает, что клиент ходит в `/api` на том же
+домене, где открыт. Поэтому один и тот же билд работает и на
+`localhost:8080`, и на HTTPS-туннеле — пересобирать под каждый URL не нужно.
+
+`DEV_BOT_TOKEN` должен совпадать с `BOT_TOKEN` backend. Прокси:
+- раздаёт Flutter-сборку по `/app/`;
+- проксирует `/api`, `/bot`, `/health`, `/docs` на backend;
+- в обычном браузере подставляет тестовый `initData`, а в настоящем
+  Telegram не вмешивается (там SDK даёт реальные данные).
+
+Первый запуск покажет онбординг «Как заниматься» — это нормально.
+Дальше можно пройти весь флоу: Home → запись → оценка → прогресс.
+
+Не запускайте `flutter run -d chrome` напрямую против backend: в backend
+нет CORS. Для локальной проверки используйте dev-прокси, он отдаёт
+клиент и API с одного origin.
+
+### 4. Настоящий Telegram
+
+```bash
+cloudflared tunnel --url http://localhost:8080
+```
+
+1. Создайте бота у `@BotFather`, положите настоящий токен в `BOT_TOKEN`.
+2. Укажите `PUBLIC_URL=https://<tunnel-домен>` и перезапустите `rechi-api`
+   (при старте backend зарегистрирует webhook).
+3. В Telegram отправьте боту `/start` и нажмите «Начать тренировку».
+
+Прокси проксирует и `/bot/webhook`, поэтому туннель можно направлять
+на него. В настоящем Telegram подмена `initData` не срабатывает.
+
+> Для production backend сам должен раздавать `/app` (или стоять за
+> nginx/Caddy). Сейчас в backend статики нет: `GET /app` возвращает 404,
+> а кнопка бота ведёт именно на `/app`. Это нужно согласовать с Андреем.
+
 ## Сборка
 
 ### Демо для показа (без backend)
@@ -147,6 +262,7 @@ nginx или Caddy). Mini App в Telegram работает только по HTT
 | Dart define | Значение по умолчанию | Назначение |
 |---|---|---|
 | `API_BASE_URL` | `http://localhost:8000` | адрес backend |
+| `SAME_ORIGIN_API` | `false` | брать origin страницы как базу API (удобно для прокси/туннеля) |
 | `MOCK_API` | `false` | принудительный демо-режим |
 
 ```bash
@@ -186,7 +302,7 @@ flutter build web --release \
    **до** Flutter.
 2. Бот присылает кнопку `web_app` с HTTPS-URL.
 3. Flutter читает `Telegram.WebApp.initData` и отправляет в
-   `POST /api/auth/telegram`.
+   `POST /api/v1/auth/telegram`.
 4. Backend проверяет `hash` и выдаёт JWT.
 5. Дальше клиент работает как обычное web-приложение с
    `Authorization: Bearer <token>`.
@@ -203,12 +319,13 @@ flutter build web --release \
 
 ## Аудио
 
-- WAV, PCM16, 16 кГц, моно — максимально совместимый формат для
+- WAV, PCM16, 16 кГц, моно — клиент пишет его; backend дополнительно
+  нормализует мобильные 44,1/48 кГц/стерео. Максимально совместимый формат для
   SpeechSuper и простой в отладке.
 - На web `record.stop()` возвращает `blob:` URL; байты читаются
-  HTTP-запросом и уходят в `POST /api/assess` multipart-полем `audio`.
+  HTTP-запросом и уходят в `POST /api/v1/assess` multipart-полем `audio`.
 - Аудио не сохраняется на клиенте и не пишется в БД (по контракту).
-- Максимум записи — 10 секунд, минимум — 600 мс.
+- Максимум записи — 20 секунд, минимум — 600 мс.
 - Если микрофон не отвечает 15 секунд, показывается понятная ошибка
   и кнопка повтора. В демо-режиме доступен фолбэк
   «Продолжить без записи (демо)».
@@ -229,11 +346,11 @@ flutter build web --release --no-wasm-dry-run
 Ручной чек-лист перед мероприятием:
 
 - [ ] Home открывается, прогресс загружается (0 попыток — пустое состояние).
-- [ ] «Начать тренировку» открывает слово.
+- [ ] «Начать тренировку» открывает выбранную категорию.
 - [ ] Микрофон спрашивает доступ и пишет WAV.
-- [ ] Запись останавливается вручную и автоматически на 10 секундах.
+- [ ] Запись останавливается вручную и автоматически на 20 секундах.
 - [ ] «Проверить произношение» показывает лоадер и результат.
-- [ ] «Ещё раз» возвращает к тому же слову, «Дальше» даёт новое.
+- [ ] «Ещё раз» возвращает к тому же заданию, «Дальше» даёт новое.
 - [ ] После возврата на Home прогресс обновился.
 - [ ] В Telegram кнопка Mini App открывает HTTPS-URL.
 - [ ] Ошибка 502 показывает «Сервис анализа речи недоступен».

@@ -7,7 +7,9 @@ import 'package:mini_app/core/mock_backend.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/exercise.dart';
+import 'package:mini_app/models/history.dart';
 import 'package:mini_app/models/progress.dart';
+import 'package:mini_app/models/training_category.dart';
 
 MockBackend _backend() {
   return MockBackend(
@@ -35,6 +37,27 @@ void main() {
 
       expect(second.id, isNot(first.id));
       expect(second.phonemes, isNotEmpty);
+    });
+
+    test('фильтрует по категории и даёт разбор по словам', () async {
+      final MockBackend backend = _backend();
+      final Exercise exercise = await backend.nextExercise(
+        category: TrainingCategory.phrase,
+      );
+
+      expect(exercise.category, TrainingCategory.phrase);
+      expect(exercise.isPhrase, isTrue);
+
+      final Assessment assessment = await backend.assess(
+        audio: Uint8List(0),
+        exerciseId: exercise.id,
+      );
+
+      expect(assessment.words.length, greaterThan(1));
+      for (final WordAssessment word in assessment.words) {
+        expect(word.text, isNotEmpty);
+        expect(word.phonemeScores, isNotEmpty);
+      }
     });
 
     test('возвращает оценки в диапазоне 0–100', () async {
@@ -77,6 +100,20 @@ void main() {
           lessThanOrEqualTo(progress.weakPhonemes[i].avgScore),
         );
       }
+    });
+
+    test('собирает историю с разбором по словам', () async {
+      final MockBackend backend = _backend();
+      final Exercise exercise = await backend.nextExercise(
+        category: TrainingCategory.phrase,
+      );
+      await backend.assess(audio: Uint8List(0), exerciseId: exercise.id);
+
+      final HistoryResponse history = await backend.history();
+
+      expect(history.attempts.length, 1);
+      expect(history.attempts.single.exerciseText, exercise.text);
+      expect(history.attempts.single.words.length, greaterThan(1));
     });
 
     test('кидает 404 для неизвестного упражнения', () async {

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 from app.assessment.audio.dto import ValidatedAudio
 from app.assessment.service import assess_pronunciation
 from app.data.models import Exercise, User
-from app.integrations.speechsuper.dto import SpeechAssessment
+from app.integrations.speechsuper.dto import SpeechAssessment, WordAssessment
 
 
 class AssessmentServiceTests(unittest.IsolatedAsyncioTestCase):
@@ -23,6 +23,13 @@ class AssessmentServiceTests(unittest.IsolatedAsyncioTestCase):
             return_value=SpeechAssessment(
                 score=78,
                 phoneme_scores={"Р": 49, "Ы": 87},
+                words=(
+                    WordAssessment(
+                        text="рыба",
+                        score=78,
+                        phoneme_scores={"Р": 49, "Ы": 87},
+                    ),
+                ),
             )
         )
 
@@ -40,7 +47,35 @@ class AssessmentServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(attempt.user_id, 3)
         self.assertEqual(attempt.exercise_id, 5)
         self.assertEqual(attempt.phoneme_scores, {"Р": 49, "Ы": 87})
+        self.assertEqual(
+            attempt.words,
+            [{"text": "рыба", "score": 78, "phoneme_scores": {"Р": 49, "Ы": 87}}],
+        )
         db.commit.assert_awaited_once()
+
+    async def test_sorts_problematic_phonemes_by_score(self) -> None:
+        db = MagicMock()
+        db.get = AsyncMock(
+            return_value=Exercise(id=5, text="шуба", phonemes=["Ш", "У"])
+        )
+        db.commit = AsyncMock()
+        speech_super = MagicMock()
+        speech_super.assess_word = AsyncMock(
+            return_value=SpeechAssessment(
+                score=60,
+                phoneme_scores={"У": 58, "Ш": 41},
+            )
+        )
+
+        result = await assess_pronunciation(
+            db,
+            speech_super,
+            user=User(id=3, telegram_id=123),
+            exercise_id=5,
+            audio=_validated_audio(),
+        )
+
+        self.assertEqual(result.problematic, ["Ш", "У"])
 
 
 def _validated_audio() -> ValidatedAudio:
