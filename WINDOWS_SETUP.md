@@ -241,7 +241,7 @@ docker compose logs -f api
 - миграции Alembic;
 - `Добавлено упражнений: 90` (или меньше, если БД уже была);
 - `Uvicorn running`;
-- `Telegram webhook registered at https://<туннель>/bot/webhook`.
+- строка `Telegram webhook registered at https://<туннель>/bot/webhook`.
 
 Остановить просмотр логов: `Ctrl+C` (контейнеры продолжат работать).
 
@@ -254,7 +254,6 @@ docker compose logs -f api
 ```powershell
 curl.exe http://localhost:8081/health
 curl.exe -I http://localhost:8081/app/
-curl.exe http://localhost:8081/docs
 ```
 
 Через туннель:
@@ -304,8 +303,8 @@ docker compose restart web
 
 | Сервис | Порт | Назначение |
 |---|---|---|
-| `web` (nginx) | 8081 | `/app/` — статика, `/api/`, `/bot/`, `/health`, `/docs` |
-| `api` (FastAPI) | 8001 → 8000 | backend, доступен снаружи только через nginx |
+| `web` (nginx) | 8081 | `/app/` — статика, `/api/`, `/bot/`, `/health` |
+| `api` (FastAPI) | 127.0.0.1:8001 → 8000 | backend, снаружи только через nginx |
 | `db` (Postgres 16) | внутри сети | база, наружу не открыта |
 | cloudflared | — | HTTPS-туннель на `localhost:8081` |
 
@@ -376,7 +375,7 @@ docker compose up -d --build
 | Симптом | Что делать |
 |---|---|
 | Docker не стартует | включи WSL2, виртуализацию в BIOS, перезагрузи ПК |
-| `port 8081 is already allocated` | `netstat -ano \| findstr :8081`; закрой процесс или поменяй `8081:80` в compose на `8081:80` и туннель на 8081 |
+| `port 8081 is already allocated` | `netstat -ano \| findstr :8081`; закрой процесс или поменяй левый порт в `8081:80` в compose и направь туннель на него |
 | `/app/` 404 | нет `mini_app/build/web/index.html`; собери/перенеси build, `docker compose restart web` |
 | `/health` 502 | API не поднялся; `docker compose logs api` |
 | `/assess` 502 | проверь `SPEECH_SUPER_KEY/SECRET/URL`; ключи trial активны; `docker compose logs api` |
@@ -400,5 +399,3 @@ docker compose up -d --build
 - [ ] `https://<туннель>/health` отвечает 200.
 - [ ] В логах API есть `webhook registered`.
 - [ ] @rechi_bot → `/start` → Mini App открывается.
-EOF
-echo "guide written"; wc -l WINDOWS_SETUP.md
