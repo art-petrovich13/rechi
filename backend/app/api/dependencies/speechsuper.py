@@ -3,9 +3,10 @@
 from collections.abc import AsyncIterator
 
 import httpx
-from fastapi import HTTPException, status
+from fastapi import status
 
 from app.core.config import settings
+from app.core.errors import ApiError
 from app.integrations.speechsuper.client import SpeechSuperClient
 from app.integrations.speechsuper.exceptions import SpeechSuperConfigurationError
 
@@ -19,7 +20,8 @@ async def get_speech_super_client() -> AsyncIterator[SpeechSuperClient]:
         try:
             yield SpeechSuperClient.from_settings(http_client)
         except SpeechSuperConfigurationError as error:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Speech service is not configured",
+            raise ApiError(
+                status.HTTP_502_BAD_GATEWAY,
+                "Speech service is not configured",
+                "speech_not_configured",
             ) from error

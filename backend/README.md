@@ -11,13 +11,13 @@
 
 ```bash
 docker build -t rechi-backend .
-docker run --rm -p 8000:8000 rechi-backend
+docker run --rm --env-file .env -p 8000:8000 rechi-backend
 ```
 
 После запуска доступны:
 
 - API: <http://localhost:8000>
-- Swagger UI: <http://localhost:8000/docs>
+- Swagger UI: <http://localhost:8000/docs> (нужно `DOCS_ENABLED=true` в `.env`)
 - Проверка состояния: <http://localhost:8000/health>
 
 ## Telegram-бот
@@ -30,7 +30,7 @@ PUBLIC_URL=https://ваш-публичный-домен
 TELEGRAM_WEBHOOK_SECRET=случайная-секретная-строка
 ```
 
-После запуска backend зарегистрирует webhook
+Если секрет пуст, он выводится из `BOT_TOKEN`. После запуска backend зарегистрирует webhook
 `https://ваш-публичный-домен/bot/webhook`. Команда `/start` покажет кнопку,
 открывающую Mini App по адресу `https://ваш-публичный-домен/app`.
 

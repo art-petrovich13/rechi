@@ -7,7 +7,8 @@ import wave
 from app.assessment.audio.dto import ValidatedAudio
 from app.assessment.audio.exceptions import (
     AudioSizeError,
-    InvalidAudioDurationError,
+    AudioTooLongError,
+    AudioTooShortError,
     InvalidWavError,
     UnsupportedAudioMediaTypeError,
 )
@@ -18,7 +19,9 @@ EXPECTED_SAMPLE_RATE = 16_000
 EXPECTED_CHANNELS = 1
 EXPECTED_SAMPLE_WIDTH = 2
 MIN_DURATION_SECONDS = 0.6
-MAX_DURATION_SECONDS = 20.0
+# Клиент останавливает запись на 20 секундах, но таймер и остановка добавляют
+# доли секунды. Запас не даёт отклонить запись, упёршуюся в лимит.
+MAX_DURATION_SECONDS = 21.0
 MIN_WAV_HEADER_BYTES = 44
 # iPhone/Safari may send 48 kHz stereo WAV. Accept up to ~8 MB and
 # normalise to the SpeechSuper contract instead of rejecting the user.
@@ -50,10 +53,10 @@ def validate_wav(audio_bytes: bytes, content_type: str | None) -> ValidatedAudio
         raise InvalidWavError("WAV audio data is truncated")
 
     duration_seconds = frame_count / sample_rate
-    if not MIN_DURATION_SECONDS <= duration_seconds <= MAX_DURATION_SECONDS:
-        raise InvalidAudioDurationError(
-            "Audio duration must be between 0.6 and 20 seconds"
-        )
+    if duration_seconds < MIN_DURATION_SECONDS:
+        raise AudioTooShortError("Audio is shorter than 0.6 seconds")
+    if duration_seconds > MAX_DURATION_SECONDS:
+        raise AudioTooLongError("Audio is longer than 20 seconds")
 
     normalized = _normalize_to_mono_16k(
         frame_data,

@@ -1,5 +1,7 @@
 """Сценарии работы с упражнениями."""
 
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +15,7 @@ async def get_next_exercise(
     user: User,
     category: ExerciseCategory | None = None,
     focus: str | None = None,
-    exclude_id: int | None = None,
+    exclude_ids: Sequence[int] = (),
 ) -> Exercise:
     """Возвращает следующее непройденное упражнение по порядку сложности."""
 
@@ -27,8 +29,8 @@ async def get_next_exercise(
         statement = statement.where(
             Exercise.phonemes.contains([focus.strip().upper()])
         )
-    if exclude_id is not None:
-        statement = statement.where(Exercise.id != exclude_id)
+    if exclude_ids:
+        statement = statement.where(Exercise.id.not_in(exclude_ids))
     statement = statement.order_by(
         Exercise.difficulty.asc(),
         Exercise.id.asc(),

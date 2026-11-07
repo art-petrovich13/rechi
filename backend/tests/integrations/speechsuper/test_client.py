@@ -6,7 +6,7 @@ import httpx
 
 from app.assessment.audio.dto import ValidatedAudio
 from app.integrations.speechsuper.client import SpeechSuperClient
-from app.integrations.speechsuper.exceptions import SpeechSuperUnavailableError
+from app.integrations.speechsuper.exceptions import SpeechSuperTimeoutError
 
 
 class SpeechSuperClientTests(unittest.IsolatedAsyncioTestCase):
@@ -119,7 +119,7 @@ class SpeechSuperClientTests(unittest.IsolatedAsyncioTestCase):
                 secret_key="secret-key",
             )
 
-            with self.assertRaises(SpeechSuperUnavailableError):
+            with self.assertRaises(SpeechSuperTimeoutError):
                 await client.assess_word(
                     _validated_audio(),
                     reference_text="рыба",

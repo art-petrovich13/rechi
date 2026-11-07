@@ -18,3 +18,4 @@ class ErrorResponse(ApiSchema):
     """Стандартный ответ API с описанием ошибки."""
 
     detail: str = Field(min_length=1)
+    code: str | None = None

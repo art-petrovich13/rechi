@@ -1,5 +1,6 @@
 """Разбор и нормализация ответов SpeechSuper."""
 
+import math
 from typing import Any
 
 from app.integrations.speechsuper.dto import SpeechAssessment, WordAssessment
@@ -35,7 +36,10 @@ def parse_assessment_response(
 
     result = payload.get("result")
     if not isinstance(result, dict):
-        raise SpeechSuperResponseError("SpeechSuper response has no result")
+        raise SpeechSuperResponseError(
+            "SpeechSuper response has no result: "
+            f"errId={payload.get('errId')!r} error={payload.get('error')!r}"
+        )
 
     warnings = result.get("warning")
     if isinstance(warnings, list) and warnings:
@@ -162,7 +166,7 @@ def _parse_optional_float(value: Any) -> float | None:
         number = float(value)
     except (TypeError, ValueError) as error:
         raise SpeechSuperResponseError("Invalid numeric value") from error
-    if number < 0:
+    if not math.isfinite(number) or number < 0:
         raise SpeechSuperResponseError("Numeric value must be non-negative")
     return number
 
@@ -175,7 +179,7 @@ def _parse_score(value: Any) -> int:
 
     try:
         score = round(float(value))
-    except (TypeError, ValueError) as error:
+    except (OverflowError, TypeError, ValueError) as error:
         raise SpeechSuperResponseError("Invalid score") from error
 
     if not 0 <= score <= 100:

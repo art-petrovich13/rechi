@@ -51,7 +51,32 @@ class AssessmentServiceTests(unittest.IsolatedAsyncioTestCase):
             attempt.words,
             [{"text": "рыба", "score": 78, "phoneme_scores": {"Р": 49, "Ы": 87}}],
         )
-        db.commit.assert_awaited_once()
+        self.assertEqual(db.commit.await_count, 2)
+
+    async def test_releases_connection_before_external_call(self) -> None:
+        db = MagicMock()
+        db.get = AsyncMock(
+            return_value=Exercise(id=5, text="шуба", phonemes=["Ш", "У"])
+        )
+        db.commit = AsyncMock()
+        commits_before_call: list[int] = []
+
+        async def assess_word(*_: object) -> SpeechAssessment:
+            commits_before_call.append(db.commit.await_count)
+            return SpeechAssessment(score=90, phoneme_scores={"Ш": 90})
+
+        speech_super = MagicMock()
+        speech_super.assess_word = assess_word
+
+        await assess_pronunciation(
+            db,
+            speech_super,
+            user=User(id=3, telegram_id=123),
+            exercise_id=5,
+            audio=_validated_audio(),
+        )
+
+        self.assertEqual(commits_before_call, [1])
 
     async def test_sorts_problematic_phonemes_by_score(self) -> None:
         db = MagicMock()

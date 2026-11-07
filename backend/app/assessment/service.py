@@ -26,6 +26,9 @@ async def assess_pronunciation(
     if exercise is None:
         raise AssessmentExerciseNotFoundError
 
+    # Внешний вызов длится секунды: нельзя держать соединение из пула.
+    await db.commit()
+
     assessment = await speech_super.assess_word(audio, exercise.text, user.id)
     attempt = Attempt(
         user_id=user.id,
@@ -56,7 +59,6 @@ async def assess_pronunciation(
         speed=assessment.speed,
         duration=assessment.duration,
     )
-
 
 
 def problematic_phonemes(phoneme_scores: dict[str, int]) -> list[str]:

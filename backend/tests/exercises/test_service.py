@@ -51,11 +51,11 @@ class ExerciseServiceTests(unittest.IsolatedAsyncioTestCase):
             db,
             User(id=3, telegram_id=123),
             ExerciseCategory.WORD,
-            exclude_id=5,
+            exclude_ids=[5, 7],
         )
 
         statement = str(db.scalar.await_args.args[0])
-        self.assertIn("exercises.id !=", statement)
+        self.assertEqual(statement.count("NOT IN"), 2)
 
     async def test_raises_when_everything_completed(self) -> None:
         db = MagicMock()

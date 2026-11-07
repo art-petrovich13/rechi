@@ -4,7 +4,7 @@ import io
 import unittest
 import wave
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -19,8 +19,37 @@ from app.main import app
 class MvpEndpointTests(unittest.TestCase):
     """Проверяет HTTP-контракты без PostgreSQL и внешней сети."""
 
+    def setUp(self) -> None:
+        validation = patch("app.main.validate_settings")
+        validation.start()
+        self.addCleanup(validation.stop)
+
     def tearDown(self) -> None:
         app.dependency_overrides.clear()
+
+    def test_rejected_recording_returns_error_code(self) -> None:
+        self._override_dependencies(MagicMock(), MagicMock())
+
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/v1/assess",
+                data={"exercise_id": "5"},
+                files={"audio": ("recording.wav", b"not-a-wav", "audio/webm")},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "audio_format")
+
+    def test_next_exercise_accepts_several_excluded_ids(self) -> None:
+        db = MagicMock()
+        db.scalar = AsyncMock(return_value=None)
+        self._override_dependencies(db, MagicMock())
+
+        with TestClient(app) as client:
+            response = client.get("/api/v1/exercises/next?exclude_id=1&exclude_id=2")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["code"], "no_exercises")
 
     def test_assess_returns_result_and_saves_attempt(self) -> None:
         db = MagicMock()
@@ -67,7 +96,7 @@ class MvpEndpointTests(unittest.TestCase):
                 ],
             },
         )
-        db.commit.assert_awaited_once()
+        self.assertEqual(db.commit.await_count, 2)
 
     def test_next_exercise_returns_category(self) -> None:
         db = MagicMock()

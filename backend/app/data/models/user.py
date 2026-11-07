@@ -17,7 +17,6 @@ class User(Base):
     telegram_id: Mapped[int] = mapped_column(
         BigInteger,
         unique=True,
-        index=True,
         nullable=False,
     )
     first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)

@@ -13,6 +13,10 @@ class SpeechSuperUnavailableError(SpeechSuperError):
     """SpeechSuper не ответил или вернул HTTP-ошибку."""
 
 
+class SpeechSuperTimeoutError(SpeechSuperUnavailableError):
+    """SpeechSuper не уложился в таймаут."""
+
+
 class SpeechSuperResponseError(SpeechSuperError):
     """SpeechSuper вернул ответ неожиданного формата."""
 

@@ -5,7 +5,7 @@
 - FastAPI API с префиксом `/api/v1`.
 - Авторизация Telegram Mini App через проверку `initData` и выдачу JWT.
 - PostgreSQL + SQLAlchemy + Alembic.
-- Выдача случайного упражнения с фильтром по категории
+- Выдача следующего непройденного упражнения с фильтром по категории
   (`word` / `phrase` / `sentence`).
 - Проверка WAV (до 20 секунд) и оценка произношения через SpeechSuper.
 - Разбор по словам: в `/assess` возвращается `words[]` с баллом и фонемами
@@ -22,7 +22,7 @@
 - 90 упражнений в seed: 43 слова, 25 словосочетаний, 22 предложения.
 - Telegram-бот на aiogram: `/start`, `/help`, Web App-кнопка и webhook.
 
-Swagger: `http://localhost:8000/docs`  
+Swagger: `http://localhost:8000/docs` (при `DOCS_ENABLED=true`)  
 Health check: `http://localhost:8000/health`
 
 ## API для Mini App
@@ -36,7 +36,7 @@ Authorization: Bearer <JWT>
 | Метод | Путь | Назначение |
 |---|---|---|
 | `POST` | `/api/v1/auth/telegram` | Обмен Telegram `initData` на JWT |
-| `GET` | `/api/v1/exercises/next` | Получение случайного упражнения |
+| `GET` | `/api/v1/exercises/next` | Следующее упражнение |
 | `POST` | `/api/v1/assess` | Отправка записи на оценку |
 | `GET` | `/api/v1/history` | Последние попытки с разбором по словам |
 | `GET` | `/api/v1/progress` | Прогресс текущего пользователя |
@@ -58,7 +58,7 @@ Authorization: Bearer <JWT>
 - `exercise_id` — ID упражнения.
 
 Требования к записи: WAV, PCM signed 16-bit little-endian, 16 kHz, mono,
-длительность 0.6–20 секунд, размер не более 8 МБ. Backend нормализует WAV (44,1/48 кГц, моно/стерео) в 16 кГц/моно. Аудио не сохраняется
+длительность 0.6–21 секунда (клиент останавливает на 20), размер не более 8 МБ. Backend нормализует WAV (44,1/48 кГц, моно/стерео) в 16 кГц/моно. Аудио не сохраняется
 ни на диск, ни в PostgreSQL.
 
 `text` упражнения может быть словом, словосочетанием или коротким
@@ -122,21 +122,22 @@ docker run --rm --env-file .env rechi-backend python seed.py
 
 ```env
 PUBLIC_URL=https://публичный-домен
-TELEGRAM_WEBHOOK_SECRET=случайная-секретная-строка
+TELEGRAM_WEBHOOK_SECRET=случайная-секретная-строка  # если пусто, выводится из BOT_TOKEN
 ```
 
 При старте backend регистрирует `${PUBLIC_URL}/bot/webhook`. Кнопка `/start`
 открывает `${PUBLIC_URL}/app`. Саму Mini App и раздачу её сборки предоставляет
 frontend-часть проекта.
 
-Без `BOT_TOKEN` или `PUBLIC_URL` бот отключён, но HTTP API продолжает работать.
+Без `BOT_TOKEN` и `JWT_SECRET` API не запускается. Без `PUBLIC_URL` или при сбое
+регистрации webhook бот отключён, но HTTP API работает.
 
 ## Проверка
 
 ```bash
 cd backend
 source .venv/bin/activate
-python -m unittest discover -s tests -v
+python -m unittest discover -s tests -t . -v
 ```
 
 Автотесты не обращаются к Telegram и SpeechSuper. Реальная интеграционная

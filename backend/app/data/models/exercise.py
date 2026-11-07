@@ -19,5 +19,6 @@ class Exercise(Base):
     category: Mapped[str] = mapped_column(
         String(16),
         default="word",
+        index=True,
         nullable=False,
     )

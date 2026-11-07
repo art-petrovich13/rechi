@@ -13,6 +13,7 @@ from app.integrations.speechsuper.dto import SpeechAssessment
 from app.integrations.speechsuper.exceptions import (
     SpeechSuperConfigurationError,
     SpeechSuperResponseError,
+    SpeechSuperTimeoutError,
     SpeechSuperUnavailableError,
 )
 from app.integrations.speechsuper.parser import parse_assessment_response
@@ -88,7 +89,9 @@ class SpeechSuperClient:
                 headers={"Request-Index": "0"},
             )
             response.raise_for_status()
-        except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as error:
+        except httpx.TimeoutException as error:
+            raise SpeechSuperTimeoutError("SpeechSuper request timed out") from error
+        except (httpx.HTTPStatusError, httpx.RequestError) as error:
             raise SpeechSuperUnavailableError("SpeechSuper request failed") from error
 
         try:

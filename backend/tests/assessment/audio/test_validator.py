@@ -95,9 +95,14 @@ class ValidateWavTests(unittest.TestCase):
 
         self.assertEqual(result.duration_seconds, 20.0)
 
+    def test_accepts_recording_stopped_slightly_after_limit(self) -> None:
+        result = validate_wav(make_wav(duration_seconds=20.2), "audio/wav")
+
+        self.assertEqual(result.duration_seconds, 20.2)
+
     def test_rejects_too_long_audio(self) -> None:
         with self.assertRaises(InvalidAudioDurationError):
-            validate_wav(make_wav(duration_seconds=20.1), "audio/wav")
+            validate_wav(make_wav(duration_seconds=21.1), "audio/wav")
 
 
 if __name__ == "__main__":

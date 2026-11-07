@@ -12,6 +12,18 @@ from app.integrations.speechsuper.parser import parse_assessment_response
 class SpeechSuperParserTests(unittest.TestCase):
     """Проверяет нормализацию результата оценки."""
 
+    def test_rejects_non_finite_score(self) -> None:
+        payload = {"result": {"overall": float("inf"), "words": []}}
+
+        with self.assertRaises(SpeechSuperResponseError):
+            parse_assessment_response(payload)
+
+    def test_error_response_keeps_reason(self) -> None:
+        payload = {"error": "quota exceeded", "errId": 20009}
+
+        with self.assertRaisesRegex(SpeechSuperResponseError, "quota exceeded"):
+            parse_assessment_response(payload)
+
     def test_parses_scores_and_merges_phonemes_by_minimum(self) -> None:
         payload = {
             "result": {

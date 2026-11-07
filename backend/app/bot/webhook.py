@@ -42,12 +42,11 @@ async def telegram_webhook(
 
 
 def _validate_webhook_secret(received_secret: str | None) -> None:
-    """Проверяет секрет webhook, если он задан в настройках."""
+    """Проверяет секрет, который Telegram получил при регистрации webhook."""
 
-    expected_secret = settings.telegram_webhook_secret
-    if expected_secret and (
-        received_secret is None
-        or not hmac.compare_digest(received_secret, expected_secret)
+    if received_secret is None or not hmac.compare_digest(
+        received_secret,
+        settings.webhook_secret,
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

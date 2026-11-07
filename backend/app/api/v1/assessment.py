@@ -15,11 +15,13 @@ from app.assessment.audio.exceptions import AudioValidationError
 from app.assessment.audio.validator import MAX_AUDIO_BYTES, validate_wav
 from app.assessment.exceptions import AssessmentExerciseNotFoundError
 from app.assessment.service import assess_pronunciation
+from app.core.errors import ApiError
 from app.data.models import User
 from app.integrations.speechsuper.client import SpeechSuperClient
 from app.integrations.speechsuper.exceptions import (
     SpeechSuperAudioRejectedError,
     SpeechSuperError,
+    SpeechSuperTimeoutError,
 )
 
 
@@ -36,6 +38,7 @@ router = APIRouter(tags=["assessment"])
         status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
         status.HTTP_502_BAD_GATEWAY: {"model": ErrorResponse},
+        status.HTTP_504_GATEWAY_TIMEOUT: {"model": ErrorResponse},
     },
 )
 async def assess_audio(
@@ -65,25 +68,37 @@ async def assess_audio(
         )
     except AudioValidationError as error:
         logger.warning("Audio validation failed: %s", error)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(error),
+        raise ApiError(
+            status.HTTP_400_BAD_REQUEST,
+            str(error),
+            error.code,
         ) from error
     except AssessmentExerciseNotFoundError as error:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Exercise not found",
+        raise ApiError(
+            status.HTTP_404_NOT_FOUND,
+            "Exercise not found",
+            "exercise_not_found",
         ) from error
     except SpeechSuperAudioRejectedError as error:
         logger.warning("SpeechSuper rejected audio: %s", error)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Speech service rejected audio",
+        raise ApiError(
+            status.HTTP_400_BAD_REQUEST,
+            "Speech service rejected audio",
+            "audio_rejected",
+        ) from error
+    except SpeechSuperTimeoutError as error:
+        logger.error("SpeechSuper timed out: %s", error)
+        raise ApiError(
+            status.HTTP_504_GATEWAY_TIMEOUT,
+            "Speech service timed out",
+            "speech_timeout",
         ) from error
     except SpeechSuperError as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Speech service unavailable",
+        logger.error("SpeechSuper failed: %s", error, exc_info=True)
+        raise ApiError(
+            status.HTTP_502_BAD_GATEWAY,
+            "Speech service unavailable",
+            "speech_unavailable",
         ) from error
 
     return AssessmentResponse(

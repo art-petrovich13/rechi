@@ -40,13 +40,14 @@ async def start_telegram_bot(config: Settings) -> TelegramBotRuntime | None:
         webhook_options: dict[str, object] = {
             "url": config.telegram_webhook_url,
             "allowed_updates": dispatcher.resolve_used_update_types(),
+            "secret_token": config.webhook_secret,
         }
-        if config.telegram_webhook_secret:
-            webhook_options["secret_token"] = config.telegram_webhook_secret
         await bot.set_webhook(**webhook_options)
     except Exception:
+        # Тренажёр работает и без бота: сбой Telegram не должен ронять API.
+        logger.exception("Telegram bot is disabled: webhook setup failed")
         await bot.session.close()
-        raise
+        return None
 
     logger.info("Telegram webhook registered at %s", config.telegram_webhook_url)
     return TelegramBotRuntime(bot=bot, dispatcher=dispatcher)

@@ -43,3 +43,33 @@ class BotLifecycleTests(unittest.IsolatedAsyncioTestCase):
 
         await stop_telegram_bot(runtime)
         bot.session.close.assert_awaited_once()
+
+    @patch("app.bot.lifecycle.create_dispatcher")
+    @patch("app.bot.lifecycle.Bot")
+    async def test_api_survives_webhook_failure(
+        self,
+        bot_class: MagicMock,
+        _: MagicMock,
+    ) -> None:
+        bot = MagicMock()
+        bot.set_my_commands = AsyncMock(side_effect=RuntimeError("no network"))
+        bot.session.close = AsyncMock()
+        bot_class.return_value = bot
+
+        with self.assertLogs("app.bot.lifecycle", level="ERROR"):
+            runtime = await start_telegram_bot(
+                Settings(
+                    bot_token="123456:fake-token",
+                    public_url="https://rechi.example",
+                )
+            )
+
+        self.assertIsNone(runtime)
+        bot.session.close.assert_awaited_once()
+
+    def test_webhook_secret_is_derived_from_token(self) -> None:
+        first = Settings(bot_token="1:a", telegram_webhook_secret="")
+        second = Settings(bot_token="1:b", telegram_webhook_secret="")
+
+        self.assertRegex(first.webhook_secret, r"^[0-9a-f]{64}$")
+        self.assertNotEqual(first.webhook_secret, second.webhook_secret)
