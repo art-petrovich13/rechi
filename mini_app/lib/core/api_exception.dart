@@ -4,6 +4,7 @@ class ApiException implements Exception {
     required this.userMessage,
     this.statusCode,
     this.serverDetail,
+    this.code,
     this.isNetwork = false,
     this.isTimeout = false,
   });
@@ -17,6 +18,9 @@ class ApiException implements Exception {
   /// Технический ответ сервера (для логов).
   final String? serverDetail;
 
+  /// Машиночитаемый код ошибки от backend.
+  final String? code;
+
   /// Не удалось установить соединение.
   final bool isNetwork;
 
@@ -25,6 +29,10 @@ class ApiException implements Exception {
 
   bool get isUnauthorized => statusCode == 401;
   bool get isNotFound => statusCode == 404;
+
+  /// Эту запись нет смысла отправлять ещё раз: нужна новая.
+  bool get requiresNewRecording => code?.startsWith('audio_') ?? false;
+
   bool get isServiceUnavailable =>
       statusCode == 502 || statusCode == 503 || statusCode == 504;
 

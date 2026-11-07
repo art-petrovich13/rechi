@@ -43,6 +43,9 @@ const Duration minRecordingDuration = Duration(milliseconds: 600);
 const String recordingFileName = 'recording.wav';
 const String recordingMimeType = 'audio/wav';
 
+/// Сколько пропущенных упражнений помнит экран тренировки.
+const int maxSkippedExercises = 50;
+
 /// Порог, ниже которого звук считается проблемным.
 const int problemScoreThreshold = 60;
 

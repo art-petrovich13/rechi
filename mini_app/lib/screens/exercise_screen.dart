@@ -45,6 +45,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   final ScrollController _scrollController = ScrollController();
 
   Exercise? _exercise;
+  final List<int> _skippedIds = <int>[];
   bool _loading = true;
   String? _error;
   bool _notFound = false;
@@ -81,6 +82,14 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
   Future<void> _loadNext({bool skip = false}) async {
+    final int? currentId = _exercise?.id;
+    if (skip && currentId != null && !_skippedIds.contains(currentId)) {
+      _skippedIds.add(currentId);
+      if (_skippedIds.length > maxSkippedExercises) {
+        _skippedIds.removeAt(0);
+      }
+    }
+
     _timer?.cancel();
     _messageTimer?.cancel();
     if (_recording) {
@@ -103,11 +112,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     });
 
     try {
-      final Exercise exercise = await _api.nextExercise(
-        category: widget.category,
-        focus: widget.focus,
-        excludeId: skip ? _exercise?.id : null,
-      );
+      final Exercise exercise = await _fetchNext();
       if (!mounted) {
         return;
       }
@@ -140,6 +145,23 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         _loading = false;
         _error = 'Не удалось загрузить упражнение. Попробуйте ещё раз.';
       });
+    }
+  }
+
+  /// Запрашивает упражнение; если остались только пропущенные, идёт по кругу.
+  Future<Exercise> _fetchNext() async {
+    try {
+      return await _api.nextExercise(
+        category: widget.category,
+        focus: widget.focus,
+        excludeIds: List<int>.of(_skippedIds),
+      );
+    } on ApiException catch (error) {
+      if (!error.isNotFound || _skippedIds.isEmpty) {
+        rethrow;
+      }
+      _skippedIds.clear();
+      return _api.nextExercise(category: widget.category, focus: widget.focus);
     }
   }
 
@@ -363,7 +385,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       _messageTimer?.cancel();
       setState(() {
         _sending = false;
-        _sendError = error.userMessage;
+        if (error.requiresNewRecording) {
+          _audio = null;
+          _recordError = error.userMessage;
+        } else {
+          _sendError = error.userMessage;
+        }
       });
       _scrollToBottom();
     } catch (error) {

@@ -205,7 +205,7 @@ class MockBackend {
   Future<Exercise> nextExercise({
     TrainingCategory? category,
     String? focus,
-    int? excludeId,
+    List<int> excludeIds = const <int>[],
   }) async {
     await Future<void>.delayed(nextDelay);
     final String? normalizedFocus = focus?.trim().toUpperCase();
@@ -216,7 +216,7 @@ class MockBackend {
               (normalizedFocus == null ||
                   normalizedFocus.isEmpty ||
                   exercise.phonemes.contains(normalizedFocus)) &&
-              (excludeId == null || exercise.id != excludeId),
+              !excludeIds.contains(exercise.id),
         )
         .toList(growable: false);
     if (pool.isEmpty) {
@@ -380,7 +380,6 @@ class MockBackend {
     return result;
   }
 
-  /// Прогресс, собранный из попыток текущей сессии.
   /// Прогресс, собранный из попыток текущей сессии.
   Future<Progress> progress() async {
     await Future<void>.delayed(progressDelay);

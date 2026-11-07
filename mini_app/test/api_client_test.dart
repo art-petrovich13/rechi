@@ -116,7 +116,10 @@ void main() {
 
     test('передаёт exclude_id в query', () async {
       final MockClient client = MockClient((http.Request request) async {
-        expect(request.url.queryParameters['exclude_id'], '5');
+        expect(request.url.queryParametersAll['exclude_id'], <String>[
+          '5',
+          '7',
+        ]);
 
         return _jsonResponse(<String, Object?>{
           'id': 6,
@@ -132,7 +135,9 @@ void main() {
         httpClient: client,
       )..setToken('jwt');
 
-      final Exercise exercise = await api.nextExercise(excludeId: 5);
+      final Exercise exercise = await api.nextExercise(
+        excludeIds: <int>[5, 7],
+      );
 
       expect(exercise.id, 6);
     });

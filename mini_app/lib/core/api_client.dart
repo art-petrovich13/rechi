@@ -83,22 +83,23 @@ class ApiClient {
   Future<Exercise> nextExercise({
     TrainingCategory? category,
     String? focus,
-    int? excludeId,
+    List<int> excludeIds = const <int>[],
   }) async {
     final MockBackend? mock = _mock;
     if (mock != null) {
       return mock.nextExercise(
         category: category,
         focus: focus,
-        excludeId: excludeId,
+        excludeIds: excludeIds,
       );
     }
 
     final Uri base = _uri(epExercisesNext);
-    final Map<String, String> query = <String, String>{
+    final Map<String, Object> query = <String, Object>{
       if (category != null) 'category': category.apiValue,
       if (focus != null && focus.isNotEmpty) 'focus': focus,
-      if (excludeId != null) 'exclude_id': '$excludeId',
+      if (excludeIds.isNotEmpty)
+        'exclude_id': excludeIds.map((int id) => '$id').toList(growable: false),
     };
     final Uri uri = query.isEmpty ? base : base.replace(queryParameters: query);
     final http.Response response = await _send(
@@ -237,27 +238,56 @@ class ApiClient {
   }
 
   ApiException _exceptionFor(http.Response response) {
-    final String? detail = _detailFrom(response);
-    final String message = switch (response.statusCode) {
-      400 => 'Не удалось выполнить запрос. Попробуйте ещё раз.',
-      401 => 'Не удалось подтвердить аккаунт. Откройте приложение заново.',
-      403 => 'Доступ запрещён.',
-      404 => 'Данные не найдены.',
-      422 => 'Сервер не принял данные. Попробуйте ещё раз.',
-      429 => 'Слишком много попыток. Подождите немного.',
-      500 => 'На сервере произошла ошибка. Попробуйте позже.',
-      502 || 503 || 504 => 'Сервис анализа речи сейчас недоступен. Попробуйте ещё раз через минуту.',
-      _ => 'Не удалось получить ответ от сервера.',
-    };
+    final Map<String, Object?>? body = _errorBody(response);
+    final Object? rawDetail = body?['detail'];
+    final Object? rawCode = body?['code'];
+    final String? detail = rawDetail is String && rawDetail.trim().isNotEmpty
+        ? rawDetail.trim()
+        : null;
+    final String? code = rawCode is String ? rawCode : null;
+    final String message =
+        _messageForCode(code) ??
+        switch (response.statusCode) {
+          400 => 'Не удалось выполнить запрос. Попробуйте ещё раз.',
+          401 => 'Не удалось подтвердить аккаунт. Откройте приложение заново.',
+          403 => 'Доступ запрещён.',
+          404 => 'Данные не найдены.',
+          422 => 'Сервер не принял данные. Попробуйте ещё раз.',
+          429 => 'Слишком много попыток. Подождите немного.',
+          500 => 'На сервере произошла ошибка. Попробуйте позже.',
+          502 ||
+          503 ||
+          504 => 'Сервер временно недоступен. Попробуйте ещё раз через минуту.',
+          _ => 'Не удалось получить ответ от сервера.',
+        };
 
     return ApiException(
       statusCode: response.statusCode,
       userMessage: message,
       serverDetail: detail,
+      code: code,
     );
   }
 
-  String? _detailFrom(http.Response response) {
+  static String? _messageForCode(String? code) {
+    return switch (code) {
+      'audio_too_short' =>
+        'Запись слишком короткая. Скажите ещё раз, чуть дольше.',
+      'audio_too_long' =>
+        'Запись длиннее 20 секунд. Попробуйте сказать короче.',
+      'audio_format' ||
+      'audio_invalid' ||
+      'audio_size' => 'Не удалось прочитать запись. Запишите ещё раз.',
+      'audio_rejected' =>
+        'Не получилось разобрать речь. Говорите ближе к микрофону, в тишине.',
+      'speech_unavailable' || 'speech_not_configured' => 'Сервис анализа речи сейчас недоступен. Попробуйте ещё раз через минуту.',
+      'speech_timeout' =>
+        'Сервис анализа речи отвечает слишком долго. Попробуйте ещё раз.',
+      _ => null,
+    };
+  }
+
+  Map<String, Object?>? _errorBody(http.Response response) {
     if (response.bodyBytes.isEmpty) {
       return null;
     }
@@ -266,10 +296,7 @@ class ApiClient {
         utf8.decode(response.bodyBytes, allowMalformed: true),
       );
       if (body is Map<Object?, Object?>) {
-        final Object? detail = body['detail'];
-        if (detail is String && detail.trim().isNotEmpty) {
-          return detail.trim();
-        }
+        return body.cast<String, Object?>();
       }
     } on FormatException {
       return null;
