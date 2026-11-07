@@ -3,7 +3,7 @@
 from pydantic import Field
 
 from app.api.v1.dto.common import ApiSchema
-from app.exercises.dto import ExerciseCategory
+from app.exercises.dto import ExerciseAudience, ExerciseCategory, SelectionReason
 
 
 class ExerciseResponse(ApiSchema):
@@ -14,3 +14,5 @@ class ExerciseResponse(ApiSchema):
     phonemes: list[str]
     difficulty: int = Field(ge=1)
     category: ExerciseCategory
+    audience: ExerciseAudience = ExerciseAudience.ALL
+    reason: SelectionReason | None = None
