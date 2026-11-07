@@ -525,7 +525,11 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         _DifficultyBadge(difficulty: exercise.difficulty),
         if (widget.focus != null) ...<Widget>[
           const SizedBox(height: 6),
-          _FocusBadge(phoneme: widget.focus!),
+          _FocusBadge(text: 'Тренируем звук ${widget.focus!}'),
+        ],
+        if (exercise.reason?.label case final String label) ...<Widget>[
+          const SizedBox(height: 6),
+          _FocusBadge(text: label),
         ],
         SizedBox(height: compact ? 6 : 12),
         Center(
@@ -951,9 +955,9 @@ class _InlineError extends StatelessWidget {
 }
 
 class _FocusBadge extends StatelessWidget {
-  const _FocusBadge({required this.phoneme});
+  const _FocusBadge({required this.text});
 
-  final String phoneme;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -966,7 +970,8 @@ class _FocusBadge extends StatelessWidget {
           border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
         ),
         child: Text(
-          'Тренируем звук $phoneme',
+          text,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -998,19 +1003,19 @@ class _NoExercises extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: const BoxDecoration(
-                  color: AppColors.successSoft,
+                  color: AppColors.primarySoft,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.celebration_rounded,
+                  Icons.search_off_rounded,
                   size: 38,
-                  color: AppColors.success,
+                  color: AppColors.primaryDark,
                 ),
               ),
               const SizedBox(height: 20),
               Text(
                 focus == null
-                    ? 'На сегодня всё!'
+                    ? 'Упражнений пока нет'
                     : 'Нет упражнений со звуком $focus',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
@@ -1022,8 +1027,8 @@ class _NoExercises extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 focus == null
-                    ? 'Все упражнения пройдены. Возвращайтесь завтра — '
-                          'или начните заново с главного экрана.'
+                    ? 'Для этой категории ещё нет заданий. '
+                          'Выберите другую на главном экране.'
                     : 'Попробуйте другой звук или вернитесь на главный экран.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(

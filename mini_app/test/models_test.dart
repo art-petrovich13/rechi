@@ -61,12 +61,25 @@ void main() {
         'phonemes': <String>['М', 'А', 'Ы', 'Л', 'Р', 'У'],
         'difficulty': 2,
         'category': 'phrase',
+        'reason': 'repeat',
       });
 
       expect(exercise.isPhrase, isTrue);
       expect(exercise.category, TrainingCategory.phrase);
-      expect(exercise.kindLabel, 'фраза');
+      expect(exercise.reason, SelectionReason.repeat);
+      expect(exercise.reason?.label, contains('Повторим'));
       expect(exercise.upperText, 'МАМА МЫЛА РАМУ');
+    });
+
+    test('неизвестная причина подбора не ломает модель', () {
+      final Exercise exercise = Exercise.fromJson(<String, Object?>{
+        'id': 1,
+        'text': 'кот',
+        'phonemes': <String>['К'],
+        'reason': 'future-reason',
+      });
+
+      expect(exercise.reason, isNull);
     });
 
     test('переживает отсутствие полей', () {
@@ -224,6 +237,19 @@ void main() {
       expect(progress.isEmpty, isFalse);
     });
 
+    test('читает тренд звука', () {
+      final Progress progress = Progress.fromJson(<String, Object?>{
+        'attempts_count': 20,
+        'weak_phonemes': <Map<String, Object?>>[
+          <String, Object?>{'phoneme': 'р', 'avg_score': 50, 'trend': 20},
+          <String, Object?>{'phoneme': 'ш', 'avg_score': 60, 'trend': null},
+        ],
+      });
+
+      expect(progress.weakPhonemes.first.trend, 20);
+      expect(progress.weakPhonemes.last.trend, isNull);
+    });
+
     test('возвращает пустой прогресс без попыток', () {
       final Progress progress = Progress.fromJson(<String, Object?>{
         'attempts_count': 0,
@@ -235,3 +261,4 @@ void main() {
     });
   });
 }
+

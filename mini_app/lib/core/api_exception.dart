@@ -33,6 +33,9 @@ class ApiException implements Exception {
   /// Эту запись нет смысла отправлять ещё раз: нужна новая.
   bool get requiresNewRecording => code?.startsWith('audio_') ?? false;
 
+  /// Лимит попыток: повтор сразу не поможет.
+  bool get isRateLimited => statusCode == 429;
+
   bool get isServiceUnavailable =>
       statusCode == 502 || statusCode == 503 || statusCode == 504;
 

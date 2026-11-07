@@ -483,7 +483,7 @@ class _ProgressContent extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Средние баллы по звукам за всё время',
+          'Средние баллы по последним попыткам',
           style: TextStyle(fontSize: 13, color: AppColors.muted),
         ),
         const SizedBox(height: 12),
@@ -521,11 +521,18 @@ class _ProgressContent extends StatelessWidget {
             runSpacing: 8,
             children: data.weakPhonemes
                 .map(
-                  (WeakPhoneme item) => PhonemeChip(
-                    phoneme: item.phoneme,
-                    score: item.avgScore,
-                    dense: true,
-                    onTap: () => onFocus(item.phoneme),
+                  (WeakPhoneme item) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      PhonemeChip(
+                        phoneme: item.phoneme,
+                        score: item.avgScore,
+                        dense: true,
+                        onTap: () => onFocus(item.phoneme),
+                      ),
+                      if (item.trend case final int trend when trend != 0)
+                        _TrendLabel(trend: trend),
+                    ],
                   ),
                 )
                 .toList(growable: false),
@@ -551,6 +558,31 @@ class _ProgressContent extends StatelessWidget {
       return 'попытки';
     }
     return 'попыток';
+  }
+}
+
+class _TrendLabel extends StatelessWidget {
+  const _TrendLabel({required this.trend});
+
+  final int trend;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool better = trend > 0;
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Text(
+        better ? '↑ $trend' : '↓ ${-trend}',
+        semanticsLabel: better
+            ? 'Лучше на $trend баллов'
+            : 'Хуже на ${-trend} баллов',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: better ? AppColors.success : AppColors.danger,
+        ),
+      ),
+    );
   }
 }
 

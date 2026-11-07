@@ -27,11 +27,6 @@ class Progress {
     );
   }
 
-  static const Progress empty = Progress(
-    attemptsCount: 0,
-    weakPhonemes: <WeakPhoneme>[],
-  );
-
   final int attemptsCount;
   final List<WeakPhoneme> weakPhonemes;
 
@@ -40,15 +35,23 @@ class Progress {
 
 /// Звук со средним баллом.
 class WeakPhoneme {
-  const WeakPhoneme({required this.phoneme, required this.avgScore});
+  const WeakPhoneme({
+    required this.phoneme,
+    required this.avgScore,
+    this.trend,
+  });
 
   factory WeakPhoneme.fromJson(Map<String, Object?> json) {
     return WeakPhoneme(
       phoneme: readString(json['phoneme']).trim().toUpperCase(),
       avgScore: readInt(json['avg_score']).clamp(0, 100),
+      trend: readOptionalInt(json['trend']),
     );
   }
 
   final String phoneme;
   final int avgScore;
+
+  /// Изменение среднего за последние попытки; null — сравнивать не с чем.
+  final int? trend;
 }

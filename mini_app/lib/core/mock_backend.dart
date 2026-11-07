@@ -222,6 +222,7 @@ class MockBackend {
     if (pool.isEmpty) {
       throw const ApiException(
         statusCode: 404,
+        code: 'no_exercises',
         userMessage: 'В этой категории пока нет упражнений.',
       );
     }

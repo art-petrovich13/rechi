@@ -14,6 +14,8 @@ class HistoryEntry {
     required this.problematic,
     required this.words,
     required this.createdAt,
+    this.fluency,
+    this.rhythm,
   });
 
   factory HistoryEntry.fromJson(Map<String, Object?> json) {
@@ -29,6 +31,8 @@ class HistoryEntry {
       createdAt:
           DateTime.tryParse(readString(json['created_at'])) ??
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      fluency: readOptionalInt(json['fluency']),
+      rhythm: readOptionalInt(json['rhythm']),
     );
   }
 
@@ -41,6 +45,8 @@ class HistoryEntry {
   final List<String> problematic;
   final List<WordAssessment> words;
   final DateTime createdAt;
+  final int? fluency;
+  final int? rhythm;
 
   String get kindTitle => category.title;
 }

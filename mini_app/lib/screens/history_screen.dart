@@ -128,7 +128,12 @@ class _HistoryCard extends StatelessWidget {
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              '${entry.category.label} · ${_formatDate(entry.createdAt)}',
+              <String>[
+                entry.category.label,
+                _formatDate(entry.createdAt),
+                if (entry.fluency != null) 'беглость ${entry.fluency}',
+                if (entry.rhythm != null) 'ритм ${entry.rhythm}',
+              ].join(' · '),
               style: const TextStyle(fontSize: 13, color: AppColors.muted),
             ),
           ),

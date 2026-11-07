@@ -135,9 +135,7 @@ void main() {
         httpClient: client,
       )..setToken('jwt');
 
-      final Exercise exercise = await api.nextExercise(
-        excludeIds: <int>[5, 7],
-      );
+      final Exercise exercise = await api.nextExercise(excludeIds: <int>[5, 7]);
 
       expect(exercise.id, 6);
     });
