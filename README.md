@@ -60,6 +60,17 @@ cd backend && python -m unittest discover -s tests -t .
 cd backend && alembic check
 ```
 
+Интеграционные тесты идут на настоящем PostgreSQL и очищают таблицы, поэтому
+запускаются только на базе с суффиксом `_test` и с флагом:
+
+```bash
+cd backend && RECHI_INTEGRATION=1 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/rechi_test python -m unittest discover -s tests -t .
+```
+
+Упражнения лежат в `backend/app/content/exercises.json`, ударение отмечается
+знаком `+`. Транскрипцию, категорию и сложность сервер считает сам, а тест
+`tests/content` проверяет разметку и покрытие звуков.
+
 ## Документы
 
 | Файл | О чём |

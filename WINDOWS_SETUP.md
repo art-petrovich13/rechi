@@ -239,7 +239,7 @@ docker compose logs -f api
 Там должно быть:
 
 - миграции Alembic;
-- `Добавлено упражнений: 90` (или меньше, если БД уже была);
+- `Упражнений в файле: 431, добавлено: …, скрыто: …`;
 - `Uvicorn running`;
 - строка `Telegram webhook registered at https://<туннель>/bot/webhook`.
 
