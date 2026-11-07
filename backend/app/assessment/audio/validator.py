@@ -6,6 +6,7 @@ import wave
 
 from app.assessment.audio.dto import ValidatedAudio
 from app.assessment.audio.exceptions import (
+    AudioSilentError,
     AudioSizeError,
     AudioTooLongError,
     AudioTooShortError,
@@ -23,6 +24,9 @@ MIN_DURATION_SECONDS = 0.6
 # доли секунды. Запас не даёт отклонить запись, упёршуюся в лимит.
 MAX_DURATION_SECONDS = 21.0
 MIN_WAV_HEADER_BYTES = 44
+# Пик тише −40 dBFS считаем тишиной: такую запись нет смысла оплачивать.
+# Порог низкий намеренно — у части пользователей очень тихий голос.
+SILENCE_PEAK_AMPLITUDE = 328
 # iPhone/Safari may send 48 kHz stereo WAV. Accept up to ~8 MB and
 # normalise to the SpeechSuper contract instead of rejecting the user.
 MAX_AUDIO_BYTES = 8_000_000
@@ -65,6 +69,8 @@ def validate_wav(audio_bytes: bytes, content_type: str | None) -> ValidatedAudio
     )
     if not normalized:
         raise InvalidWavError("WAV audio data is empty")
+    if audioop.max(normalized, EXPECTED_SAMPLE_WIDTH) < SILENCE_PEAK_AMPLITUDE:
+        raise AudioSilentError("Audio is silent")
 
     return ValidatedAudio(
         data=_wav_bytes(normalized),

@@ -43,6 +43,10 @@ async def assess_pronunciation(
             }
             for word in assessment.words
         ],
+        fluency=assessment.fluency,
+        rhythm=assessment.rhythm,
+        pronunciation=assessment.pronunciation,
+        duration=assessment.duration,
     )
     db.add(attempt)
     await db.commit()

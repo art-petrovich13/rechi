@@ -5,7 +5,7 @@
 - FastAPI API с префиксом `/api/v1`.
 - Авторизация Telegram Mini App через проверку `initData` и выдачу JWT.
 - PostgreSQL + SQLAlchemy + Alembic.
-- Выдача следующего непройденного упражнения с фильтром по категории
+- Подбор упражнений: повтор слабых, похожие звуки, новые, закрепление; фильтр по категории
   (`word` / `phrase` / `sentence`).
 - Проверка WAV (до 20 секунд) и оценка произношения через SpeechSuper.
 - Разбор по словам: в `/assess` возвращается `words[]` с баллом и фонемами
@@ -19,7 +19,8 @@
   фонем.
 - История последних попыток: `GET /api/v1/history?limit=20`.
 - Фильтр упражнений по слабому звуку: `GET /api/v1/exercises/next?focus=Р`.
-- 90 упражнений в seed: 43 слова, 25 словосочетаний, 22 предложения.
+- Контент в `app/content/exercises.json` (431 упражнение для всех, детей и взрослых);
+  `seed.py` синхронизирует базу с файлом.
 - Telegram-бот на aiogram: `/start`, `/help`, Web App-кнопка и webhook.
 
 Swagger: `http://localhost:8000/docs` (при `DOCS_ENABLED=true`)  

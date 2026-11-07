@@ -12,6 +12,9 @@ from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.db import get_db
 from app.api.dependencies.speechsuper import get_speech_super_client
 from app.data.models import Attempt, Exercise, User
+from app.exercises.dto import SelectionReason
+from app.exercises.exceptions import ExerciseNotFoundError
+from app.exercises.service import ExerciseChoice
 from app.integrations.speechsuper.dto import SpeechAssessment, WordAssessment
 from app.main import app
 
@@ -20,9 +23,13 @@ class MvpEndpointTests(unittest.TestCase):
     """Проверяет HTTP-контракты без PostgreSQL и внешней сети."""
 
     def setUp(self) -> None:
-        validation = patch("app.main.validate_settings")
-        validation.start()
-        self.addCleanup(validation.stop)
+        for target, value in (
+            ("app.main.validate_settings", MagicMock()),
+            ("app.api.v1.assessment.attempts_today", AsyncMock(return_value=0)),
+        ):
+            patcher = patch(target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def tearDown(self) -> None:
         app.dependency_overrides.clear()
@@ -39,17 +46,6 @@ class MvpEndpointTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["code"], "audio_format")
-
-    def test_next_exercise_accepts_several_excluded_ids(self) -> None:
-        db = MagicMock()
-        db.scalar = AsyncMock(return_value=None)
-        self._override_dependencies(db, MagicMock())
-
-        with TestClient(app) as client:
-            response = client.get("/api/v1/exercises/next?exclude_id=1&exclude_id=2")
-
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()["code"], "no_exercises")
 
     def test_assess_returns_result_and_saves_attempt(self) -> None:
         db = MagicMock()
@@ -98,56 +94,47 @@ class MvpEndpointTests(unittest.TestCase):
         )
         self.assertEqual(db.commit.await_count, 2)
 
-    def test_next_exercise_returns_category(self) -> None:
-        db = MagicMock()
-        db.scalar = AsyncMock(
-            return_value=Exercise(
+    def test_next_exercise_returns_choice_with_reason(self) -> None:
+        choice = ExerciseChoice(
+            Exercise(
                 id=16,
+                key="мама мыла раму",
                 text="мама мыла раму",
                 phonemes=["М", "А", "Ы", "Л", "Р", "У"],
                 difficulty=2,
                 category="phrase",
-            )
+                audience="all",
+            ),
+            SelectionReason.REPEAT,
         )
-        self._override_dependencies(db, MagicMock())
+        self._override_dependencies(MagicMock(), MagicMock())
 
-        with TestClient(app) as client:
-            response = client.get("/api/v1/exercises/next?category=phrase")
+        with patch(
+            "app.api.v1.exercises.get_next_exercise_for_user",
+            AsyncMock(return_value=choice),
+        ) as service, TestClient(app) as client:
+            response = client.get(
+                "/api/v1/exercises/next?category=phrase&focus=hissing"
+                "&exclude_id=1&exclude_id=2"
+            )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["category"], "phrase")
-        self.assertEqual(response.json()["text"], "мама мыла раму")
+        self.assertEqual(response.json()["reason"], "repeat")
+        self.assertEqual(service.await_args.args[3], "hissing")
+        self.assertEqual(service.await_args.args[4], [1, 2])
 
-    def test_next_exercise_accepts_focus_phoneme(self) -> None:
-        db = MagicMock()
-        db.scalar = AsyncMock(
-            return_value=Exercise(
-                id=28,
-                text="мышка",
-                phonemes=["М", "Ы", "Ш", "К", "А"],
-                difficulty=2,
-                category="word",
-            )
-        )
-        self._override_dependencies(db, MagicMock())
+    def test_next_exercise_returns_404_with_code(self) -> None:
+        self._override_dependencies(MagicMock(), MagicMock())
 
-        with TestClient(app) as client:
-            response = client.get("/api/v1/exercises/next?category=word&focus=Ш")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["text"], "мышка")
-        statement = str(db.scalar.await_args.args[0])
-        self.assertIn("phonemes", statement)
-
-    def test_next_exercise_returns_404_when_all_completed(self) -> None:
-        db = MagicMock()
-        db.scalar = AsyncMock(return_value=None)
-        self._override_dependencies(db, MagicMock())
-
-        with TestClient(app) as client:
+        with patch(
+            "app.api.v1.exercises.get_next_exercise_for_user",
+            AsyncMock(side_effect=ExerciseNotFoundError),
+        ), TestClient(app) as client:
             response = client.get("/api/v1/exercises/next?category=word")
 
         self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["code"], "no_exercises")
 
     def test_history_returns_per_word_breakdown(self) -> None:
         db = MagicMock()
@@ -192,6 +179,7 @@ class MvpEndpointTests(unittest.TestCase):
 
     def test_progress_returns_aggregated_weak_phonemes(self) -> None:
         db = MagicMock()
+        db.scalar = AsyncMock(return_value=2)
         db.scalars = AsyncMock(
             return_value=[{"Р": 40, "Ы": 90}, {"Р": 60, "Ы": 80}]
         )
@@ -205,7 +193,9 @@ class MvpEndpointTests(unittest.TestCase):
             response.json(),
             {
                 "attempts_count": 2,
-                "weak_phonemes": [{"phoneme": "Р", "avg_score": 50}],
+                "weak_phonemes": [
+                    {"phoneme": "Р", "avg_score": 50, "trend": None}
+                ],
             },
         )
 
@@ -226,12 +216,12 @@ class MvpEndpointTests(unittest.TestCase):
 
 
 def _wav_bytes() -> bytes:
-    """Формирует секунду тишины PCM16/16kHz/mono."""
+    """Формирует секунду громкого сигнала PCM16/16kHz/mono."""
 
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as wav_file:
         wav_file.setnchannels(1)
         wav_file.setsampwidth(2)
         wav_file.setframerate(16_000)
-        wav_file.writeframes(b"\x00\x00" * 16_000)
+        wav_file.writeframes((8000).to_bytes(2, "little", signed=True) * 16_000)
     return buffer.getvalue()

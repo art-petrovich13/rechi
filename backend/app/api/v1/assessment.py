@@ -14,6 +14,8 @@ from app.api.v1.dto.common import ErrorResponse
 from app.assessment.audio.exceptions import AudioValidationError
 from app.assessment.audio.validator import MAX_AUDIO_BYTES, validate_wav
 from app.assessment.exceptions import AssessmentExerciseNotFoundError
+from app.assessment.limits import MinuteRateLimiter, attempts_today
+from app.core.config import settings
 from app.assessment.service import assess_pronunciation
 from app.core.errors import ApiError
 from app.data.models import User
@@ -29,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["assessment"])
 
+minute_limiter = MinuteRateLimiter(settings.assess_per_minute_limit)
+
 
 @router.post(
     "/assess",
@@ -37,6 +41,7 @@ router = APIRouter(tags=["assessment"])
     responses={
         status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": ErrorResponse},
         status.HTTP_502_BAD_GATEWAY: {"model": ErrorResponse},
         status.HTTP_504_GATEWAY_TIMEOUT: {"model": ErrorResponse},
     },
@@ -54,6 +59,20 @@ async def assess_audio(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="exercise_id must be positive",
+        )
+
+    daily_limit = settings.assess_daily_limit
+    if daily_limit > 0 and await attempts_today(db, current_user.id) >= daily_limit:
+        raise ApiError(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Daily assessment limit reached",
+            "daily_limit",
+        )
+    if not minute_limiter.try_acquire(current_user.id):
+        raise ApiError(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too many assessments, try again in a minute",
+            "rate_limited",
         )
 
     audio_bytes = await audio.read(MAX_AUDIO_BYTES + 1)

@@ -24,7 +24,7 @@ class SpeechSuperParserTests(unittest.TestCase):
         with self.assertRaisesRegex(SpeechSuperResponseError, "quota exceeded"):
             parse_assessment_response(payload)
 
-    def test_parses_scores_and_merges_phonemes_by_minimum(self) -> None:
+    def test_parses_scores_and_averages_repeated_phonemes(self) -> None:
         payload = {
             "result": {
                 "overall": 78.4,
@@ -43,7 +43,7 @@ class SpeechSuperParserTests(unittest.TestCase):
         result = parse_assessment_response(payload)
 
         self.assertEqual(result.score, 78)
-        self.assertEqual(result.phoneme_scores, {"Р": 40, "А": 90})
+        self.assertEqual(result.phoneme_scores, {"Р": 50, "А": 90})
 
     def test_parses_word_scores_and_phonemes(self) -> None:
         payload = {
@@ -76,12 +76,12 @@ class SpeechSuperParserTests(unittest.TestCase):
         self.assertEqual(result.score, 72)
         self.assertEqual(result.words[0].text, "мама")
         self.assertEqual(result.words[0].score, 80)
-        self.assertEqual(result.words[0].phoneme_scores, {"М": 85, "А": 70})
+        self.assertEqual(result.words[0].phoneme_scores, {"М": 88, "А": 70})
         self.assertEqual(result.words[1].text, "мыла")
         self.assertEqual(result.words[1].score, 64)
         self.assertEqual(
             result.phoneme_scores,
-            {"М": 60, "А": 70, "Ы": 80},
+            {"М": 78, "А": 70, "Ы": 80},
         )
 
     def test_normalizes_latin_vowels_to_cyrillic(self) -> None:

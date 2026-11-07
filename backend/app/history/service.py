@@ -22,6 +22,10 @@ class HistoryItem:
     phoneme_scores: dict[str, int]
     words: list[dict[str, Any]]
     created_at: datetime
+    fluency: int | None = None
+    rhythm: int | None = None
+    pronunciation: int | None = None
+    duration: float | None = None
 
 
 async def get_user_history(
@@ -49,6 +53,10 @@ async def get_user_history(
             phoneme_scores=attempt.phoneme_scores,
             words=attempt.words or [],
             created_at=attempt.created_at,
+            fluency=attempt.fluency,
+            rhythm=attempt.rhythm,
+            pronunciation=attempt.pronunciation,
+            duration=attempt.duration,
         )
         for attempt, exercise in result.all()
     ]

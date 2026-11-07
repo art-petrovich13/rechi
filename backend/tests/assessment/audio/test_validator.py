@@ -5,6 +5,7 @@ import unittest
 import wave
 
 from app.assessment.audio.exceptions import (
+    AudioSilentError,
     AudioSizeError,
     InvalidAudioDurationError,
     InvalidWavError,
@@ -20,10 +21,11 @@ def make_wav(
     channels: int = 1,
     sample_width: int = 2,
 ) -> bytes:
-    """Создаёт WAV с тишиной и заданными параметрами."""
+    """Создаёт WAV с громким сигналом и заданными параметрами."""
 
     frame_count = int(duration_seconds * sample_rate)
-    frame = b"\x00" * sample_width * channels
+    sample = (8000).to_bytes(2, "little", signed=True)[:sample_width]
+    frame = sample * channels
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as wav_file:
         wav_file.setnchannels(channels)
@@ -35,6 +37,17 @@ def make_wav(
 
 class ValidateWavTests(unittest.TestCase):
     """Проверяет аудиоконтракт Mini App."""
+
+    def test_rejects_silence(self) -> None:
+        silent = io.BytesIO()
+        with wave.open(silent, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(16_000)
+            wav_file.writeframes(b"\x00\x00" * 16_000)
+
+        with self.assertRaises(AudioSilentError):
+            validate_wav(silent.getvalue(), "audio/wav")
 
     def test_accepts_expected_wav(self) -> None:
         audio = make_wav()

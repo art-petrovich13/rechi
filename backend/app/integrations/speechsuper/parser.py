@@ -3,6 +3,7 @@
 import math
 from typing import Any
 
+from app.core.numbers import mean_score
 from app.integrations.speechsuper.dto import SpeechAssessment, WordAssessment
 from app.integrations.speechsuper.exceptions import (
     SpeechSuperAudioRejectedError,
@@ -62,18 +63,16 @@ def parse_assessment_response(
 
     reference_words = (reference_text or "").split()
     words: list[WordAssessment] = []
-    phoneme_scores: dict[str, int] = {}
+    occurrences: dict[str, list[int]] = {}
 
     for index, word in enumerate(raw_words):
         if not isinstance(word, dict):
             raise SpeechSuperResponseError("Invalid word result")
 
-        word_phonemes = _parse_word_phonemes(word)
-        for name, score in word_phonemes.items():
-            previous_score = phoneme_scores.get(name)
-            phoneme_scores[name] = (
-                score if previous_score is None else min(previous_score, score)
-            )
+        word_occurrences = _parse_word_phonemes(word)
+        for name, scores in word_occurrences.items():
+            occurrences.setdefault(name, []).extend(scores)
+        word_phonemes = _average(word_occurrences)
 
         text = _word_text(word, reference_words, index)
         word_score = _word_score(word, overall_score)
@@ -85,6 +84,7 @@ def parse_assessment_response(
             )
         )
 
+    phoneme_scores = _average(occurrences)
     if not phoneme_scores:
         raise SpeechSuperResponseError("SpeechSuper response has empty phonemes")
 
@@ -100,24 +100,29 @@ def parse_assessment_response(
     )
 
 
-def _parse_word_phonemes(word: dict[str, Any]) -> dict[str, int]:
-    """Собирает уникальные звуки одного слова."""
+def _average(occurrences: dict[str, list[int]]) -> dict[str, int]:
+    """Один балл на звук: среднее по всем его произнесениям.
+
+    Минимум систематически занижал звуки во фразах, где звук встречается часто.
+    """
+
+    return {name: mean_score(scores) for name, scores in occurrences.items()}
+
+
+def _parse_word_phonemes(word: dict[str, Any]) -> dict[str, list[int]]:
+    """Собирает все оценки каждого звука одного слова."""
 
     phonemes = word.get("phonemes")
     if not isinstance(phonemes, list) or not phonemes:
         raise SpeechSuperResponseError("SpeechSuper response has no phonemes")
 
-    scores: dict[str, int] = {}
+    scores: dict[str, list[int]] = {}
     for phoneme in phonemes:
         if not isinstance(phoneme, dict):
             raise SpeechSuperResponseError("Invalid phoneme result")
 
         name = _normalize_phoneme(phoneme.get("phoneme"))
-        phoneme_score = _parse_score(phoneme.get("pronunciation"))
-        previous_score = scores.get(name)
-        scores[name] = (
-            phoneme_score if previous_score is None else min(previous_score, phoneme_score)
-        )
+        scores.setdefault(name, []).append(_parse_score(phoneme.get("pronunciation")))
     return scores
 
 

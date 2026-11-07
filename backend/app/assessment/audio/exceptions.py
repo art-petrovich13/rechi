@@ -27,6 +27,12 @@ class InvalidAudioDurationError(AudioValidationError):
     """Продолжительность записи находится вне допустимых границ."""
 
 
+class AudioSilentError(AudioValidationError):
+    """В записи не слышно голоса."""
+
+    code = "audio_silent"
+
+
 class AudioTooShortError(InvalidAudioDurationError):
     """Запись короче минимума."""
 

@@ -19,6 +19,10 @@ class HistoryAttemptResponse(ApiSchema):
     problematic: list[str]
     words: list[WordAssessmentResponse]
     created_at: datetime
+    fluency: Score | None = None
+    rhythm: Score | None = None
+    pronunciation: Score | None = None
+    duration: float | None = None
 
 
 class HistoryResponse(ApiSchema):

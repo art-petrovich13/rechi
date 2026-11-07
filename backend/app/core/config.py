@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     speech_super_secret: str = ""
     speech_super_url: str = "https://api.speechsuper.com"
     speech_super_timeout_seconds: float = 30.0
+    # Платный сервис: ограничиваем частоту и дневное число оценок.
+    assess_per_minute_limit: int = 8
+    assess_daily_limit: int = 200
 
     model_config = SettingsConfigDict(
         env_file=".env",

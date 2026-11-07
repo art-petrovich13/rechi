@@ -27,3 +27,18 @@ class ProgressServiceTests(unittest.TestCase):
 
         self.assertEqual(summary.attempts_count, 0)
         self.assertEqual(summary.weak_phonemes, [])
+
+
+class ProgressWindowTests(unittest.TestCase):
+    """Прогресс должен отражать улучшение."""
+
+    def test_old_mistakes_do_not_hide_improvement(self) -> None:
+        summary = build_progress_summary([{"Р": 30}] * 20 + [{"Р": 95}] * 10)
+
+        self.assertEqual(summary.weak_phonemes, [])
+
+    def test_reports_trend_against_previous_window(self) -> None:
+        summary = build_progress_summary([{"Р": 30}] * 10 + [{"Р": 50}] * 10)
+
+        weak = summary.weak_phonemes[0]
+        self.assertEqual((weak.avg_score, weak.trend), (50, 20))

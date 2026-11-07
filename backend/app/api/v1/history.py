@@ -18,7 +18,7 @@ from app.history.service import get_user_history
 router = APIRouter(prefix="/history", tags=["history"])
 
 
-@router.get("", response_model=HistoryResponse)
+@router.get("", response_model=HistoryResponse, response_model_exclude_none=True)
 async def get_history(
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
     db: AsyncSession = Depends(get_db),
@@ -52,6 +52,10 @@ async def get_history(
                 problematic=problematic_phonemes(item.phoneme_scores),
                 words=words,
                 created_at=item.created_at,
+                fluency=item.fluency,
+                rhythm=item.rhythm,
+                pronunciation=item.pronunciation,
+                duration=item.duration,
             )
         )
     return HistoryResponse(attempts=attempts)

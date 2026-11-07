@@ -10,6 +10,7 @@ class WeakPhonemeResponse(ApiSchema):
 
     phoneme: str = Field(min_length=1)
     avg_score: Score
+    trend: int | None = None
 
 
 class ProgressResponse(ApiSchema):

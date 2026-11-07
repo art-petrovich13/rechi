@@ -29,6 +29,7 @@ async def get_progress(
             WeakPhonemeResponse(
                 phoneme=item.phoneme,
                 avg_score=item.avg_score,
+                trend=item.trend,
             )
             for item in summary.weak_phonemes
         ],
