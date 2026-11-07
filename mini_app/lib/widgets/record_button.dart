@@ -88,46 +88,44 @@ class _RecordButtonState extends State<RecordButton>
             button: true,
             enabled: widget.enabled,
             label: recording ? 'Остановить запись' : 'Начать запись',
+            onTap: widget.enabled ? widget.onPressed : null,
             child: ExcludeSemantics(
-              child: GestureDetector(
-                onTap: widget.enabled ? widget.onPressed : null,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 108,
-                  height: 108,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: recording
-                          ? const <Color>[Color(0xFFE05B4F), AppColors.danger]
-                          : const <Color>[
-                              AppColors.primaryBright,
-                              AppColors.primaryDark,
-                            ],
-                    ),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.3),
-                        blurRadius: 26,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 108,
+                height: 108,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: recording
+                        ? const <Color>[Color(0xFFE05B4F), AppColors.danger]
+                        : const <Color>[
+                            AppColors.primaryBright,
+                            AppColors.primaryDark,
+                          ],
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    shape: const CircleBorder(),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: widget.enabled ? widget.onPressed : null,
-                      child: Center(
-                        child: Icon(
-                          recording ? Icons.stop_rounded : Icons.mic_rounded,
-                          size: 46,
-                          color: Colors.white,
-                        ),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 26,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: widget.enabled ? widget.onPressed : null,
+                    child: Center(
+                      child: Icon(
+                        recording ? Icons.stop_rounded : Icons.mic_rounded,
+                        size: 46,
+                        color: Colors.white,
                       ),
                     ),
                   ),

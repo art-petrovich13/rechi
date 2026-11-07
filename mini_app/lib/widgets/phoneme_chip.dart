@@ -89,6 +89,7 @@ class PhonemeChip extends StatelessWidget {
       label: '$semanticsLabel. Потренировать звук',
       button: true,
       container: true,
+      onTap: onTap,
       child: ExcludeSemantics(
         child: InkWell(
           onTap: onTap,

@@ -18,7 +18,9 @@ Future<void> main() async {
   final AuthService auth = AuthService(api: api, telegram: telegram);
   final ProgressService progress = ProgressService(api: api);
 
-  runApp(RechiApp(api: api, auth: auth, progress: progress));
+  runApp(
+    RechiApp(api: api, auth: auth, progress: progress, telegram: telegram),
+  );
 }
 
 /// Корневое приложение «Речи».
@@ -28,17 +30,20 @@ class RechiApp extends StatelessWidget {
     required this.api,
     required this.auth,
     required this.progress,
+    required this.telegram,
   });
 
   final ApiClient api;
   final AuthService auth;
   final ProgressService progress;
+  final TelegramBridge telegram;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: <SingleChildWidget>[
         Provider<ApiClient>.value(value: api),
+        Provider<TelegramBridge>.value(value: telegram),
         ChangeNotifierProvider<AuthService>.value(value: auth),
         ChangeNotifierProvider<ProgressService>.value(value: progress),
       ],
@@ -48,6 +53,9 @@ class RechiApp extends StatelessWidget {
         theme: AppTheme.light,
         themeMode: ThemeMode.light,
         home: const AuthGate(),
+        navigatorObservers: <NavigatorObserver>[
+          TelegramBackButtonObserver(telegram),
+        ],
         builder: (BuildContext context, Widget? child) {
           return MediaQuery.withClampedTextScaling(
             minScaleFactor: 1,
