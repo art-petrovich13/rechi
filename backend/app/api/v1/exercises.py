@@ -18,6 +18,12 @@ from app.exercises.service import get_next_exercise as get_next_exercise_for_use
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
+
+def _user_audience(user: User) -> ExerciseAudience | None:
+    """Аудитория из профиля, если пользователь её выбрал."""
+
+    return ExerciseAudience(user.audience) if user.audience else None
+
 MAX_EXCLUDED_EXERCISES = 100
 
 
@@ -46,7 +52,7 @@ async def get_next_exercise(
             category,
             focus,
             exclude_id or (),
-            audience,
+            audience or _user_audience(current_user),
         )
     except ExerciseNotFoundError as error:
         raise ApiError(

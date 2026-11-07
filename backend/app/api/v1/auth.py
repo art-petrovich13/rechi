@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.db import get_db
-from app.api.v1.dto.auth import TelegramAuthRequest, TelegramAuthResponse
+from app.api.v1.dto.auth import TelegramAuthRequest, TelegramAuthResponse, UserResponse
 from app.api.v1.dto.common import ErrorResponse
 from app.auth.exceptions import InvalidInitDataError
 from app.auth.service import authenticate_telegram_user
@@ -34,5 +34,5 @@ async def authenticate_with_telegram(
 
     return TelegramAuthResponse(
         token=result.token,
-        user={"id": result.user.id, "first_name": result.user.first_name},
+        user=UserResponse.from_user(result.user),
     )

@@ -6,6 +6,7 @@ from app.api.v1.assessment import router as assessment_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.exercises import router as exercises_router
 from app.api.v1.history import router as history_router
+from app.api.v1.profile import router as profile_router
 from app.api.v1.progress import router as progress_router
 
 
@@ -15,3 +16,4 @@ router.include_router(exercises_router)
 router.include_router(assessment_router)
 router.include_router(progress_router)
 router.include_router(history_router)
+router.include_router(profile_router)

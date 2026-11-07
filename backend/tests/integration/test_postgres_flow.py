@@ -171,6 +171,29 @@ class PostgresFlowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(history["attempts"][0]["fluency"], 70)
         self.assertEqual(history["attempts"][0]["rhythm"], 60)
 
+    async def test_profile_audience_filters_and_delete_removes_history(self) -> None:
+        response = await self.client.patch(
+            "/api/v1/me",
+            json={"audience": "child", "consent_version": 1},
+            headers=self.headers,
+        )
+        self.assertEqual(response.json()["audience"], "child")
+
+        audiences = set()
+        for _ in range(15):
+            exercise = (await self._next(category="sentence")).json()
+            audiences.add(exercise["audience"])
+            await self._assess(exercise["id"])
+        self.assertLessEqual(audiences, {"all", "child"})
+
+        deleted = await self.client.delete("/api/v1/me", headers=self.headers)
+        self.assertEqual(deleted.status_code, 204)
+        async with engine.connect() as connection:
+            left = await connection.scalar(text("SELECT count(*) FROM attempts"))
+        self.assertEqual(left, 0)
+        gone = await self.client.get("/api/v1/me", headers=self.headers)
+        self.assertEqual(gone.status_code, 401)
+
     async def test_database_connection_is_free_during_speech_call(self) -> None:
         exercise = (await self._next()).json()
         self.speech.delay = 0.5
