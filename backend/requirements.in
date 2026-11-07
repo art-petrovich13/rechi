@@ -1,0 +1,12 @@
+# Прямые зависимости. Точные версии — в requirements.txt:
+# uv pip compile requirements.in -o requirements.txt --python-version 3.11
+fastapi
+uvicorn[standard]
+aiogram
+sqlalchemy[asyncio]
+alembic
+asyncpg
+httpx
+pydantic-settings
+pyjwt
+python-multipart

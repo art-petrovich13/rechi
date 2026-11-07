@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+import jwt
 
 from app.auth.exceptions import InvalidAccessTokenError
 from app.core.config import settings
@@ -36,7 +36,7 @@ def decode_access_token(token: str) -> int:
             algorithms=[settings.jwt_algorithm],
         )
         user_id = int(payload["sub"])
-    except (JWTError, KeyError, TypeError, ValueError) as error:
+    except (jwt.PyJWTError, KeyError, TypeError, ValueError) as error:
         raise InvalidAccessTokenError("Invalid access token") from error
 
     if user_id < 1:
