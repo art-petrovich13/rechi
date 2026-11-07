@@ -6,6 +6,9 @@ import 'package:mini_app/core/api_client.dart';
 import 'package:mini_app/core/api_exception.dart';
 import 'package:mini_app/core/audio_recorder.dart';
 import 'package:mini_app/core/constants.dart';
+import 'package:mini_app/core/exercise_audio.dart';
+import 'package:mini_app/core/recording_controller.dart';
+import 'package:mini_app/core/telegram_bridge.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/exercise.dart';
 import 'package:mini_app/models/training_category.dart';
@@ -23,10 +26,20 @@ import 'package:provider/provider.dart';
 
 /// Экран упражнения: слово или фраза, запись WAV и отправка на проверку.
 class ExerciseScreen extends StatefulWidget {
-  const ExerciseScreen({super.key, required this.category, this.focus});
+  const ExerciseScreen({
+    super.key,
+    required this.category,
+    this.focus,
+    this.recorder,
+    this.audio,
+  });
 
   final TrainingCategory category;
   final String? focus;
+
+  /// Подмена рекордера и звука для тестов и других платформ.
+  final AudioRecorderBackend? recorder;
+  final ExerciseAudio? audio;
 
   @override
   State<ExerciseScreen> createState() => _ExerciseScreenState();
@@ -41,7 +54,9 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   ];
 
   late final ApiClient _api;
-  final AudioRecorderService _recorder = AudioRecorderService();
+  late final TelegramBridge _telegram;
+  late final RecordingController _recording;
+  late final ExerciseAudio _audio;
   final ScrollController _scrollController = ScrollController();
 
   Exercise? _exercise;
@@ -49,36 +64,72 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   bool _loading = true;
   String? _error;
   bool _notFound = false;
-
-  bool _starting = false;
-  bool _recording = false;
-  Uint8List? _audio;
-  Duration _duration = Duration.zero;
-  bool _micDenied = false;
-  bool _tooShort = false;
-  String? _recordError;
-  Timer? _timer;
+  bool _canSpeak = false;
 
   bool _sending = false;
   String? _sendError;
   String _loadingMessage = _loadingMessages.first;
   Timer? _messageTimer;
   int _messageIndex = 0;
+  RecordingPhase _lastPhase = RecordingPhase.idle;
 
   @override
   void initState() {
     super.initState();
     _api = context.read<ApiClient>();
+    _telegram = context.read<TelegramBridge>();
+    _recording = RecordingController(
+      recorder: widget.recorder ?? AudioRecorderService(),
+    )..addListener(_onRecordingChanged);
+    _audio = widget.audio ?? ExerciseAudio();
+    unawaited(_prepareSpeech());
     _loadNext();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     _messageTimer?.cancel();
+    _telegram.setClosingConfirmation(enabled: false);
+    _recording
+      ..removeListener(_onRecordingChanged)
+      ..dispose();
+    _audio.dispose();
     _scrollController.dispose();
-    _recorder.dispose();
     super.dispose();
+  }
+
+  Future<void> _prepareSpeech() async {
+    final bool ready = await _audio.prepareSpeech();
+    if (mounted) {
+      setState(() => _canSpeak = ready);
+    }
+  }
+
+  void _onRecordingChanged() {
+    final RecordingPhase phase = _recording.phase;
+    _syncClosingConfirmation();
+    if (phase == _lastPhase) {
+      return;
+    }
+    final RecordingPhase previous = _lastPhase;
+    _lastPhase = phase;
+    if (phase == RecordingPhase.recording) {
+      unawaited(HapticFeedback.lightImpact());
+    }
+    if (phase == RecordingPhase.recorded &&
+        previous == RecordingPhase.stopping) {
+      _scrollToBottom();
+      unawaited(HapticFeedback.mediumImpact());
+      if (_recording.autoStopped) {
+        _showSnack('Запись остановлена на $maxRecordingSeconds секундах.');
+      }
+    }
+  }
+
+  void _syncClosingConfirmation() {
+    _telegram.setClosingConfirmation(
+      enabled: _sending || _recording.isRecording || _recording.isBusy,
+    );
   }
 
   Future<void> _loadNext({bool skip = false}) async {
@@ -90,24 +141,17 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       }
     }
 
-    _timer?.cancel();
     _messageTimer?.cancel();
-    if (_recording) {
-      unawaited(_recorder.cancel());
+    unawaited(_audio.stop());
+    await _recording.reset();
+    if (!mounted) {
+      return;
     }
-
     setState(() {
       _loading = true;
       _error = null;
       _notFound = false;
       _exercise = null;
-      _starting = false;
-      _recording = false;
-      _audio = null;
-      _duration = Duration.zero;
-      _micDenied = false;
-      _tooShort = false;
-      _recordError = null;
       _sendError = null;
     });
 
@@ -165,130 +209,6 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     }
   }
 
-  Future<void> _startRecording() async {
-    if (_recording || _starting || _sending) {
-      return;
-    }
-
-    setState(() {
-      _starting = true;
-      _micDenied = false;
-      _tooShort = false;
-      _recordError = null;
-      _sendError = null;
-    });
-
-    try {
-      final bool allowed = await _recorder.ensurePermission();
-      if (!mounted) {
-        return;
-      }
-      if (!allowed) {
-        setState(() {
-          _starting = false;
-          _micDenied = true;
-        });
-        return;
-      }
-
-      await _recorder.start();
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _starting = false;
-        _recording = true;
-        _audio = null;
-        _duration = Duration.zero;
-      });
-      _startTimer();
-      unawaited(HapticFeedback.lightImpact());
-    } on RecordingException catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _starting = false;
-        _recording = false;
-        _recordError = error.message;
-      });
-    } catch (error) {
-      debugPrint('Recording start failed: $error');
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _starting = false;
-        _recording = false;
-        _recordError = 'Не удалось начать запись. Попробуйте ещё раз.';
-      });
-    }
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (Timer timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() => _duration = _recorder.elapsed);
-      if (_duration.inMilliseconds >= maxRecordingSeconds * 1000) {
-        unawaited(_stopRecording(autoStopped: true));
-      }
-    });
-  }
-
-  Future<void> _stopRecording({bool autoStopped = false}) async {
-    if (!_recording) {
-      return;
-    }
-
-    _timer?.cancel();
-    final Duration duration = _recorder.elapsed;
-    setState(() {
-      _recording = false;
-      _duration = duration;
-    });
-
-    try {
-      final Uint8List? bytes = await _recorder.stop();
-      if (!mounted) {
-        return;
-      }
-
-      if (bytes == null ||
-          bytes.length < 44 ||
-          duration < minRecordingDuration) {
-        setState(() {
-          _audio = null;
-          _tooShort = true;
-        });
-        return;
-      }
-
-      setState(() {
-        _audio = bytes;
-        _tooShort = false;
-        _recordError = null;
-      });
-      _scrollToBottom();
-      unawaited(HapticFeedback.mediumImpact());
-      if (autoStopped) {
-        _showSnack('Запись остановлена на $maxRecordingSeconds секундах.');
-      }
-    } on RecordingException catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _audio = null;
-        _recordError = error.message;
-      });
-    }
-  }
-
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) {
@@ -308,59 +228,32 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     });
   }
 
-  void _resetRecording() {
-    _timer?.cancel();
-    if (_recording) {
-      unawaited(_recorder.cancel());
-    }
-    setState(() {
-      _starting = false;
-      _recording = false;
-      _audio = null;
-      _duration = Duration.zero;
-      _micDenied = false;
-      _tooShort = false;
-      _recordError = null;
-      _sendError = null;
-    });
-  }
-
-  void _useDemoAudio() {
-    setState(() {
-      _audio = Uint8List.fromList(List<int>.filled(32000, 0));
-      _duration = const Duration(seconds: 1);
-      _micDenied = false;
-      _tooShort = false;
-      _recordError = null;
-    });
-    _scrollToBottom();
-  }
-
   Future<void> _submit() async {
     final Exercise? exercise = _exercise;
-    final Uint8List? audio = _audio;
-    if (exercise == null || audio == null || _sending) {
+    final Recording? recording = _recording.recording;
+    if (exercise == null || recording == null || _sending) {
       return;
     }
 
+    unawaited(_audio.stop());
     setState(() {
       _sending = true;
       _sendError = null;
       _messageIndex = 0;
       _loadingMessage = _loadingMessages.first;
     });
+    _syncClosingConfirmation();
     _startMessageCycle();
 
     try {
       final Assessment assessment = await _api.assess(
-        audio: audio,
+        audio: recording.bytes,
         exerciseId: exercise.id,
       );
       if (!mounted) {
         return;
       }
-      _messageTimer?.cancel();
-      setState(() => _sending = false);
+      _finishSending();
       unawaited(HapticFeedback.mediumImpact());
 
       final ResultAction? action = await Navigator.of(context)
@@ -376,35 +269,36 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       if (action == ResultAction.next) {
         await _loadNext();
       } else {
-        _resetRecording();
+        await _recording.reset();
       }
     } on ApiException catch (error) {
       if (!mounted) {
         return;
       }
-      _messageTimer?.cancel();
-      setState(() {
-        _sending = false;
-        if (error.requiresNewRecording) {
-          _audio = null;
-          _recordError = error.userMessage;
-        } else {
-          _sendError = error.userMessage;
-        }
-      });
+      _finishSending();
+      if (error.requiresNewRecording) {
+        _recording.reject(error.userMessage);
+      } else {
+        setState(() => _sendError = error.userMessage);
+      }
       _scrollToBottom();
     } catch (error) {
       debugPrint('Assess failed: $error');
       if (!mounted) {
         return;
       }
-      _messageTimer?.cancel();
-      setState(() {
-        _sending = false;
-        _sendError = 'Не удалось проверить запись. Попробуйте ещё раз.';
-      });
+      _finishSending();
+      setState(
+        () => _sendError = 'Не удалось проверить запись. Попробуйте ещё раз.',
+      );
       _scrollToBottom();
     }
+  }
+
+  void _finishSending() {
+    _messageTimer?.cancel();
+    setState(() => _sending = false);
+    _syncClosingConfirmation();
   }
 
   void _startMessageCycle() {
@@ -463,7 +357,11 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       ],
       child: Stack(
         children: <Widget>[
-          _buildBody(context),
+          ListenableBuilder(
+            listenable: _recording,
+            builder: (BuildContext context, Widget? child) =>
+                _buildBody(context),
+          ),
           if (_sending)
             LoadingOverlay(
               message: _loadingMessage,
@@ -517,6 +415,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     }
 
     final bool compact = MediaQuery.sizeOf(context).height < 700;
+    final Recording? recording = _recording.recording;
 
     return ListView(
       controller: _scrollController,
@@ -585,8 +484,20 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 )
                 .toList(growable: false),
           ),
-        SizedBox(height: compact ? 8 : 22),
-        _buildRecorder(context),
+        if (_canSpeak) ...<Widget>[
+          const SizedBox(height: 10),
+          Center(
+            child: TextButton.icon(
+              onPressed: _recording.isRecording || _sending
+                  ? null
+                  : () => _audio.speak(exercise.text),
+              icon: const Icon(Icons.volume_up_rounded),
+              label: const Text('Послушать образец'),
+            ),
+          ),
+        ],
+        SizedBox(height: compact ? 8 : 18),
+        _buildRecorder(context, exercise),
         const SizedBox(height: 18),
         if (_sendError != null) ...<Widget>[
           _InlineError(
@@ -599,9 +510,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         PrimaryButton(
           label: 'Проверить произношение',
           icon: Icons.graphic_eq_rounded,
-          onPressed: _audio != null && !_recording && !_starting
-              ? _submit
-              : null,
+          onPressed: recording != null && !_sending ? _submit : null,
         ),
         const SizedBox(height: 12),
         const Center(
@@ -610,9 +519,11 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             children: <Widget>[
               Icon(Icons.shield_outlined, size: 16, color: AppColors.muted),
               SizedBox(width: 6),
-              Text(
-                'Аудио не сохраняется',
-                style: TextStyle(fontSize: 13, color: AppColors.muted),
+              Flexible(
+                child: Text(
+                  'Запись уходит только на проверку и не хранится',
+                  style: TextStyle(fontSize: 13, color: AppColors.muted),
+                ),
               ),
             ],
           ),
@@ -621,36 +532,36 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     );
   }
 
-  Widget _buildRecorder(BuildContext context) {
-    final TrainingCategory category = _exercise?.category ?? widget.category;
-    final String kind = switch (category) {
+  Widget _buildRecorder(BuildContext context, Exercise exercise) {
+    final String kind = switch (exercise.category) {
       TrainingCategory.sentence => 'предложение',
       TrainingCategory.phrase => 'фразу',
       TrainingCategory.word => 'слово',
     };
-    if (_micDenied) {
+    final RecordingPhase phase = _recording.phase;
+    if (phase == RecordingPhase.micDenied) {
       return _MicDenied(
         canUseDemo: _api.isMock,
-        onRetry: _startRecording,
-        onUseDemo: _useDemoAudio,
+        onRetry: _recording.start,
+        onUseDemo: _recording.useDemoRecording,
       );
     }
 
-    final bool hasAudio = _audio != null;
+    final Recording? recording = _recording.recording;
 
     return Column(
       children: <Widget>[
         RecordButton(
-          isRecording: _recording,
-          enabled: !_starting && !_sending,
-          onPressed: _recording ? _stopRecording : _startRecording,
+          isRecording: _recording.isRecording,
+          enabled: !_recording.isBusy && !_sending,
+          onPressed: _recording.toggle,
         ),
         const SizedBox(height: 4),
-        if (_recording) ...<Widget>[
+        if (_recording.isRecording) ...<Widget>[
           const SoundWave(active: true),
           const SizedBox(height: 4),
           Text(
-            _formatDuration(_duration),
+            _formatDuration(_recording.elapsed),
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
@@ -663,8 +574,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(
-                value: (_duration.inMilliseconds / (maxRecordingSeconds * 1000))
-                    .clamp(0, 1),
+                value:
+                    (_recording.elapsed.inMilliseconds /
+                            (maxRecordingSeconds * 1000))
+                        .clamp(0, 1),
                 minHeight: 5,
                 color: AppColors.danger,
                 backgroundColor: AppColors.dangerSoft,
@@ -676,18 +589,20 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             'Нажмите, чтобы остановить',
             style: TextStyle(fontSize: 13, color: AppColors.muted),
           ),
-        ] else if (_starting) ...<Widget>[
+        ] else if (_recording.isBusy) ...<Widget>[
           const SizedBox(
             width: 24,
             height: 24,
             child: CircularProgressIndicator(strokeWidth: 2.6),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Включаем микрофон…',
-            style: TextStyle(fontSize: 14, color: AppColors.muted),
+          Text(
+            phase == RecordingPhase.starting
+                ? 'Включаем микрофон…'
+                : 'Сохраняем запись…',
+            style: const TextStyle(fontSize: 14, color: AppColors.muted),
           ),
-        ] else if (hasAudio) ...<Widget>[
+        ] else if (recording != null) ...<Widget>[
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
@@ -698,7 +613,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                'Запись готова · ${_formatDuration(_duration)}',
+                'Запись готова · ${_formatDuration(recording.duration)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -707,10 +622,21 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
               ),
             ],
           ),
-          TextButton.icon(
-            onPressed: _resetRecording,
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Перезаписать'),
+          Wrap(
+            alignment: WrapAlignment.center,
+            children: <Widget>[
+              if (recording.url case final String url)
+                TextButton.icon(
+                  onPressed: _sending ? null : () => _audio.playRecording(url),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                  label: const Text('Послушать себя'),
+                ),
+              TextButton.icon(
+                onPressed: _sending ? null : _recording.reset,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Перезаписать'),
+              ),
+            ],
           ),
         ] else ...<Widget>[
           Text(
@@ -724,7 +650,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             style: TextStyle(fontSize: 13, color: AppColors.muted),
           ),
         ],
-        if (_tooShort) ...<Widget>[
+        if (phase == RecordingPhase.tooShort) ...<Widget>[
           const SizedBox(height: 10),
           const _InlineNote(
             icon: Icons.timer_outlined,
@@ -732,16 +658,16 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             text: 'Слишком короткая запись. Нажмите и говорите чуть дольше.',
           ),
         ],
-        if (_recordError != null) ...<Widget>[
+        if (_recording.error case final String message) ...<Widget>[
           const SizedBox(height: 10),
           _InlineNote(
             icon: Icons.error_outline_rounded,
             color: AppColors.danger,
-            text: _recordError!,
+            text: message,
           ),
           if (_api.isMock)
             TextButton(
-              onPressed: _useDemoAudio,
+              onPressed: _recording.useDemoRecording,
               child: const Text('Продолжить без записи (демо)'),
             ),
         ],

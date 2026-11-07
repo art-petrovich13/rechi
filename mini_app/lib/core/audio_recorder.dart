@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mini_app/core/constants.dart';
+import 'package:mini_app/core/object_url.dart';
 import 'package:record/record.dart';
 
 /// Ошибка записи или получения аудио.
@@ -15,11 +16,50 @@ class RecordingException implements Exception {
   String toString() => 'RecordingException: $message';
 }
 
+/// Готовая запись: байты для отправки и адрес для прослушивания.
+class Recording {
+  Recording({required this.bytes, this.url, this.duration = Duration.zero});
+
+  final Uint8List bytes;
+
+  /// `blob:` на web, путь к файлу на мобильных; null — слушать нечего.
+  final String? url;
+  final Duration duration;
+
+  bool _released = false;
+
+  Recording withDuration(Duration value) {
+    final Recording copy = Recording(bytes: bytes, url: url, duration: value);
+    _released = true;
+    return copy;
+  }
+
+  /// Освобождает адрес записи. Повторный вызов безопасен.
+  void release() {
+    final String? value = url;
+    if (_released || value == null) {
+      return;
+    }
+    _released = true;
+    revokeObjectUrl(value);
+  }
+}
+
+/// Рекордер, которым управляет [RecordingController].
+abstract interface class AudioRecorderBackend {
+  Duration get elapsed;
+  Future<bool> ensurePermission();
+  Future<void> start();
+  Future<Recording?> stop();
+  Future<void> cancel();
+  void dispose();
+}
+
 /// Запись WAV 16 кГц / моно через пакет `record`.
 ///
 /// На web `stop()` возвращает blob URL; байты читаются HTTP-запросом.
 /// `dart:io` не используется, поэтому сервис собирается под web.
-class AudioRecorderService {
+class AudioRecorderService implements AudioRecorderBackend {
   AudioRecorderService({http.Client? httpClient})
     : _http = httpClient ?? http.Client();
 
@@ -34,6 +74,7 @@ class AudioRecorderService {
 
   bool get isRecording => _isRecording;
 
+  @override
   Duration get elapsed {
     final DateTime? startedAt = _startedAt;
     if (startedAt == null) {
@@ -43,6 +84,7 @@ class AudioRecorderService {
   }
 
   /// Проверяет и при необходимости запрашивает доступ к микрофону.
+  @override
   Future<bool> ensurePermission() async {
     try {
       return await _recorder.hasPermission().timeout(_permissionTimeout);
@@ -56,6 +98,7 @@ class AudioRecorderService {
   }
 
   /// Начинает запись в WAV.
+  @override
   Future<void> start() async {
     if (_isRecording) {
       return;
@@ -86,8 +129,9 @@ class AudioRecorderService {
     }
   }
 
-  /// Останавливает запись и возвращает WAV-байты.
-  Future<Uint8List?> stop() async {
+  /// Останавливает запись и возвращает WAV-байты и адрес для прослушивания.
+  @override
+  Future<Recording?> stop() async {
     if (!_isRecording) {
       return null;
     }
@@ -105,6 +149,7 @@ class AudioRecorderService {
           .get(Uri.parse(blobUrl))
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
+        revokeObjectUrl(blobUrl);
         throw const RecordingException(
           'Не удалось получить запись. Попробуйте ещё раз.',
         );
@@ -112,9 +157,10 @@ class AudioRecorderService {
 
       final Uint8List bytes = response.bodyBytes;
       if (bytes.length < 44) {
+        revokeObjectUrl(blobUrl);
         throw const RecordingException('Запись получилась слишком короткой.');
       }
-      return bytes;
+      return Recording(bytes: bytes, url: blobUrl);
     } on RecordingException {
       rethrow;
     } catch (error) {
@@ -126,6 +172,7 @@ class AudioRecorderService {
   }
 
   /// Отменяет запись и освобождает микрофон.
+  @override
   Future<void> cancel() async {
     _isRecording = false;
     _startedAt = null;
@@ -137,6 +184,7 @@ class AudioRecorderService {
   }
 
   /// Освобождает ресурсы.
+  @override
   void dispose() {
     _isRecording = false;
     _startedAt = null;

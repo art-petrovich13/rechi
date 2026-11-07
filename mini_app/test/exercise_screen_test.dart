@@ -1,14 +1,17 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mini_app/core/api_client.dart';
+import 'package:mini_app/core/telegram_bridge.dart';
 import 'package:mini_app/models/training_category.dart';
 import 'package:mini_app/screens/exercise_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
+
+import 'fakes.dart';
 
 const Map<int, String> _exercises = <int, String>{
   1: 'рыба',
@@ -41,23 +44,38 @@ http.Response _nextExercise(http.Request request) {
   return http.Response('{"detail":"All exercises completed"}', 404);
 }
 
-Future<void> _pumpScreen(WidgetTester tester) async {
+Future<FakeExerciseAudio> _pumpScreen(
+  WidgetTester tester, {
+  Future<http.Response> Function(http.Request request)? assess,
+}) async {
+  final FakeExerciseAudio audio = FakeExerciseAudio();
   final ApiClient api = ApiClient(
     baseUrl: 'http://test',
     mock: false,
     httpClient: MockClient((http.Request request) async {
+      if (request.url.path.endsWith('/assess') && assess != null) {
+        return assess(request);
+      }
       return _nextExercise(request);
     }),
   );
   await tester.pumpWidget(
-    Provider<ApiClient>.value(
-      value: api,
-      child: const MaterialApp(
-        home: ExerciseScreen(category: TrainingCategory.word),
+    MultiProvider(
+      providers: <SingleChildWidget>[
+        Provider<ApiClient>.value(value: api),
+        Provider<TelegramBridge>.value(value: TelegramBridge()),
+      ],
+      child: MaterialApp(
+        home: ExerciseScreen(
+          category: TrainingCategory.word,
+          recorder: FakeRecorder(),
+          audio: audio,
+        ),
       ),
     ),
   );
   await _settle(tester);
+  return audio;
 }
 
 Future<void> _settle(WidgetTester tester) async {
@@ -71,14 +89,6 @@ Future<void> _skip(WidgetTester tester) async {
 }
 
 void main() {
-  setUp(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('com.llfbandit.record/messages'),
-          (MethodCall call) async => null,
-        );
-  });
-
   testWidgets('пропуск проходит все упражнения и идёт по кругу', (
     WidgetTester tester,
   ) async {
@@ -93,5 +103,46 @@ void main() {
 
     await _skip(tester);
     expect(find.text('РЫБА'), findsOneWidget);
+  });
+
+  testWidgets('образец озвучивает текст упражнения', (
+    WidgetTester tester,
+  ) async {
+    final FakeExerciseAudio audio = await _pumpScreen(tester);
+
+    await tester.tap(find.text('Послушать образец'));
+    await _settle(tester);
+
+    expect(audio.spoken, <String>['рыба']);
+  });
+
+  testWidgets('тишина в записи просит записать заново', (
+    WidgetTester tester,
+  ) async {
+    await _pumpScreen(
+      tester,
+      assess: (http.Request request) async => http.Response.bytes(
+        utf8.encode('{"detail":"Audio is silent","code":"audio_silent"}'),
+        400,
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.mic_rounded));
+    await _settle(tester);
+    await tester.tap(find.byIcon(Icons.stop_rounded));
+    await _settle(tester);
+    expect(find.text('Послушать себя'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Проверить произношение'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Проверить произношение'));
+    await _settle(tester);
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(find.textContaining('Не слышно голоса'), findsOneWidget);
+    expect(find.text('Послушать себя'), findsNothing);
   });
 }
