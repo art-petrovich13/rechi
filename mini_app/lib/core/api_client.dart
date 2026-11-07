@@ -13,6 +13,7 @@ import 'package:mini_app/models/exercise.dart';
 import 'package:mini_app/models/history.dart';
 import 'package:mini_app/models/progress.dart';
 import 'package:mini_app/models/training_category.dart';
+import 'package:mini_app/models/user.dart';
 
 /// Единый HTTP-клиент приложения.
 ///
@@ -155,6 +156,45 @@ class ApiClient {
       retries: 1,
     );
     return HistoryResponse.fromJson(_decodeMap(response));
+  }
+
+  /// `PATCH /api/v1/me` — аудитория и принятое согласие.
+  Future<User> updateProfile({
+    UserAudience? audience,
+    int? consentVersion,
+  }) async {
+    final MockBackend? mock = _mock;
+    if (mock != null) {
+      return mock.updateProfile(
+        audience: audience,
+        consentVersion: consentVersion,
+      );
+    }
+
+    final http.Response response = await _send(
+      () => _http.patch(
+        _uri(epProfile),
+        headers: _jsonHeaders,
+        body: jsonEncode(<String, Object>{
+          'audience': ?audience?.apiValue,
+          'consent_version': ?consentVersion,
+        }),
+      ),
+      timeout: apiTimeout,
+    );
+    return User.fromJson(_decodeMap(response));
+  }
+
+  /// `DELETE /api/v1/me` — удаляет пользователя и историю.
+  Future<void> deleteProfile() async {
+    final MockBackend? mock = _mock;
+    if (mock != null) {
+      return mock.deleteProfile();
+    }
+    await _send(
+      () => _http.delete(_uri(epProfile), headers: _authHeaders),
+      timeout: apiTimeout,
+    );
   }
 
   /// `GET /api/progress`.

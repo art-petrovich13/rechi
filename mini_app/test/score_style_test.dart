@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mini_app/models/user.dart';
 import 'package:mini_app/theme/app_theme.dart';
 import 'package:mini_app/theme/score_style.dart';
 
@@ -26,6 +27,17 @@ void main() {
       expect(ScoreStyle.feedback(80), contains('Хорошо'));
       expect(ScoreStyle.feedback(60), contains('Неплохо'));
       expect(ScoreStyle.feedback(30), contains('Попробуй'));
+    });
+
+    test('со взрослым говорит на «вы»', () {
+      expect(
+        ScoreStyle.feedback(30, audience: UserAudience.adult),
+        contains('Попробуйте'),
+      );
+      expect(
+        ScoreStyle.adviceFor('Р', audience: UserAudience.adult),
+        startsWith('Поднимите'),
+      );
     });
   });
 

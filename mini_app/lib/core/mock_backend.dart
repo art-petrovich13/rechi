@@ -31,6 +31,7 @@ class MockBackend {
   final Duration progressDelay;
 
   final List<_MockAttempt> _attempts = <_MockAttempt>[];
+  User _user = const User(id: 1, firstName: 'Иван');
   int? _lastExerciseId;
 
   static const List<Exercise> _exercises = <Exercise>[
@@ -195,10 +196,26 @@ class MockBackend {
   /// Демо-пользователь.
   Future<AuthResponse> auth(String initData) async {
     await Future<void>.delayed(authDelay);
-    return const AuthResponse(
-      token: 'demo-token',
-      user: User(id: 1, firstName: 'Иван'),
+    return AuthResponse(token: 'demo-token', user: _user);
+  }
+
+  /// Сохраняет профиль демо-пользователя.
+  Future<User> updateProfile({
+    UserAudience? audience,
+    int? consentVersion,
+  }) async {
+    await Future<void>.delayed(authDelay);
+    return _user = _user.copyWith(
+      audience: audience,
+      consentVersion: consentVersion,
     );
+  }
+
+  /// Стирает демо-данные.
+  Future<void> deleteProfile() async {
+    await Future<void>.delayed(authDelay);
+    _user = const User(id: 1, firstName: 'Иван');
+    reset();
   }
 
   /// Случайное упражнение категории, не повторяющее предыдущее.

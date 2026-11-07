@@ -4,6 +4,7 @@ import 'package:mini_app/core/constants.dart';
 import 'package:mini_app/core/progress_service.dart';
 import 'package:mini_app/models/progress.dart';
 import 'package:mini_app/models/training_category.dart';
+import 'package:mini_app/models/user.dart';
 import 'package:mini_app/screens/exercise_screen.dart';
 import 'package:mini_app/screens/history_screen.dart';
 import 'package:mini_app/theme/app_theme.dart';
@@ -13,6 +14,7 @@ import 'package:mini_app/widgets/error_view.dart';
 import 'package:mini_app/widgets/how_it_works_sheet.dart';
 import 'package:mini_app/widgets/phoneme_chip.dart';
 import 'package:mini_app/widgets/primary_button.dart';
+import 'package:mini_app/widgets/settings_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -106,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final AuthService auth = context.watch<AuthService>();
     final ProgressService progress = context.watch<ProgressService>();
     final String name = auth.user?.displayName ?? '';
+    final bool child = auth.user?.audience == UserAudience.child;
 
     return Scaffold(
       body: SafeArea(
@@ -125,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     isDemo: auth.isDemo,
                     onHistory: _openHistory,
                     onHelp: () => showHowItWorksSheet(context),
+                    onSettings: () => showSettingsSheet(context),
                   ),
                   const SizedBox(height: 28),
                   Text(
@@ -132,9 +136,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: Theme.of(context).textTheme.headlineLarge,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Готовы потренировать речь? Это займёт 3–5 минут.',
-                    style: TextStyle(
+                  Text(
+                    child
+                        ? 'Поиграем со звуками? Это займёт 3–5 минут.'
+                        : 'Готовы потренировать речь? Это займёт 3–5 минут.',
+                    style: const TextStyle(
                       fontSize: 17,
                       height: 1.4,
                       color: AppColors.muted,
@@ -146,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                   const SizedBox(height: 22),
                   _ProgressCard(
+                    title: child ? 'Твой прогресс' : 'Ваш прогресс',
                     progress: progress,
                     onRetry: progress.load,
                     onFocus: _startFocus,
@@ -250,11 +257,13 @@ class _HomeHeader extends StatelessWidget {
     required this.isDemo,
     required this.onHistory,
     required this.onHelp,
+    required this.onSettings,
   });
 
   final bool isDemo;
   final VoidCallback onHistory;
   final VoidCallback onHelp;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -302,6 +311,11 @@ class _HomeHeader extends StatelessWidget {
           tooltip: 'Как заниматься',
           icon: const Icon(Icons.help_outline_rounded),
         ),
+        IconButton(
+          onPressed: onSettings,
+          tooltip: 'Настройки',
+          icon: const Icon(Icons.settings_outlined),
+        ),
       ],
     );
   }
@@ -342,11 +356,13 @@ class _DemoBanner extends StatelessWidget {
 
 class _ProgressCard extends StatelessWidget {
   const _ProgressCard({
+    required this.title,
     required this.progress,
     required this.onRetry,
     required this.onFocus,
   });
 
+  final String title;
   final ProgressService progress;
   final VoidCallback onRetry;
   final ValueChanged<String> onFocus;
@@ -388,10 +404,10 @@ class _ProgressCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Твой прогресс',
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: AppColors.ink,

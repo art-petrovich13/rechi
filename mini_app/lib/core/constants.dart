@@ -29,6 +29,11 @@ const String epExercisesNext = '/api/v1/exercises/next';
 const String epAssess = '/api/v1/assess';
 const String epProgress = '/api/v1/progress';
 const String epHistory = '/api/v1/history';
+const String epProfile = '/api/v1/me';
+
+/// Версия текста согласия. Увеличивается при изменении текста:
+/// пользователи увидят согласие заново.
+const int consentVersion = 1;
 
 /// Таймауты запросов.
 const Duration apiTimeout = Duration(seconds: 20);

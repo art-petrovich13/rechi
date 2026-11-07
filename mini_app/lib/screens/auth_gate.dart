@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mini_app/core/auth_service.dart';
 import 'package:mini_app/screens/auth_error_screen.dart';
 import 'package:mini_app/screens/home_screen.dart';
+import 'package:mini_app/screens/onboarding_screens.dart';
 import 'package:mini_app/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -30,8 +31,12 @@ class _AuthGateState extends State<AuthGate> {
     final AuthService auth = context.watch<AuthService>();
     final Widget screen = switch (auth.status) {
       AuthStatus.idle || AuthStatus.loading => const SplashScreen(),
+      AuthStatus.authenticated when !auth.hasConsent => const ConsentScreen(),
+      AuthStatus.authenticated when auth.user?.audience == null =>
+        const AudienceScreen(),
       AuthStatus.authenticated => const HomeScreen(),
       AuthStatus.error => AuthErrorScreen(auth: auth),
+      AuthStatus.deleted => const DataDeletedScreen(),
     };
 
     return AnimatedSwitcher(
@@ -39,7 +44,7 @@ class _AuthGateState extends State<AuthGate> {
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
       child: KeyedSubtree(
-        key: ValueKey<AuthStatus>(auth.status),
+        key: ValueKey<Object>(screen.runtimeType),
         child: screen,
       ),
     );

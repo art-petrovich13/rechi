@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:mini_app/core/auth_service.dart';
 import 'package:mini_app/models/assessment.dart';
 import 'package:mini_app/models/exercise.dart';
 import 'package:mini_app/theme/app_theme.dart';
@@ -7,6 +8,7 @@ import 'package:mini_app/theme/score_style.dart';
 import 'package:mini_app/widgets/page_scaffold.dart';
 import 'package:mini_app/widgets/phoneme_chip.dart';
 import 'package:mini_app/widgets/score_badge.dart';
+import 'package:provider/provider.dart';
 
 /// Что сделать после просмотра результата.
 enum ResultAction { retry, next }
@@ -52,7 +54,10 @@ class ResultScreen extends StatelessWidget {
                 Center(child: ScoreBadge(score: assessment.score)),
                 const SizedBox(height: 18),
                 Text(
-                  ScoreStyle.feedback(assessment.score),
+                  ScoreStyle.feedback(
+                    assessment.score,
+                    audience: context.watch<AuthService>().user?.audience,
+                  ),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 21,
@@ -566,7 +571,10 @@ class _AdviceRow extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                ScoreStyle.adviceFor(phoneme),
+                ScoreStyle.adviceFor(
+                  phoneme,
+                  audience: context.watch<AuthService>().user?.audience,
+                ),
                 style: const TextStyle(
                   fontSize: 14,
                   height: 1.4,

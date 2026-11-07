@@ -7,7 +7,7 @@ import 'package:mini_app/models/auth_response.dart';
 import 'package:mini_app/models/user.dart';
 
 /// Состояние авторизации.
-enum AuthStatus { idle, loading, authenticated, error }
+enum AuthStatus { idle, loading, authenticated, error, deleted }
 
 /// Причина ошибки входа.
 enum AuthErrorKind { none, noTelegram, network, unauthorized, unknown }
@@ -98,6 +98,37 @@ class AuthService extends ChangeNotifier {
         'Что-то пошло не так. Попробуйте войти ещё раз.',
       );
     }
+  }
+
+  /// Пользователь принял текущую версию согласия.
+  bool get hasConsent => (_user?.consentVersion ?? 0) >= consentVersion;
+
+  /// Сохраняет согласие на обработку данных.
+  Future<void> acceptConsent() =>
+      _updateProfile(consentVersion: consentVersion);
+
+  /// Сохраняет, кто занимается.
+  Future<void> setAudience(UserAudience audience) =>
+      _updateProfile(audience: audience);
+
+  /// Удаляет аккаунт и историю; после этого вход нужен заново.
+  Future<void> deleteAccount() async {
+    await api.deleteProfile();
+    api.setToken(null);
+    _user = null;
+    _status = AuthStatus.deleted;
+    notifyListeners();
+  }
+
+  Future<void> _updateProfile({
+    UserAudience? audience,
+    int? consentVersion,
+  }) async {
+    _user = await api.updateProfile(
+      audience: audience,
+      consentVersion: consentVersion,
+    );
+    notifyListeners();
   }
 
   /// Включить демо-режим (для отладки и показа без backend).
